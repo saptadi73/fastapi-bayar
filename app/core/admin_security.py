@@ -13,6 +13,7 @@ ROLES = {
 for role in ("SUPER_ADMIN", "INTEGRATION_ADMIN"):
     ROLES[role].update({"admin.clients.read", "admin.clients.manage", "admin.clients.rotate_secret"})
 ROLES["AUDITOR"].add("admin.clients.read")
+ROLES["SUPER_ADMIN"].add("admin.portal_users.read")
 for role in ("SUPER_ADMIN", "INTEGRATION_ADMIN"):
     ROLES[role].update({"admin.services.read", "admin.services.manage"})
 ROLES["AUDITOR"].add("admin.services.read")

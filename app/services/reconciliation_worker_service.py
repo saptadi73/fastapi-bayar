@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.core.errors import AppError
 from app.gateways.midtrans.client import MidtransSnapClient
+from app.gateways.doku.client import DokuDirectClient
 from app.models.payment import ReconciliationCase
 from app.services.reconciliation_service import reconcile_attempt
 
@@ -47,7 +48,11 @@ async def reconciliation_tick() -> dict[str, int]:
         totals["claimed"] += 1
         try:
             async with SessionLocal() as db:
-                result = await reconcile_attempt(db, attempt_id, MidtransSnapClient(get_settings()))
+                from app.models.payment import PaymentAttempt
+                case = await db.get(ReconciliationCase, case_id)
+                attempt = await db.get(PaymentAttempt, case.attempt_id)
+                adapter = DokuDirectClient(get_settings()) if attempt.gateway == "DOKU" else MidtransSnapClient(get_settings())
+                result = await reconcile_attempt(db, attempt_id, adapter)
             await finish_case(case_id, result_status=result.get("status", "UNKNOWN"))
             totals["completed"] += 1
         except AppError as exc:

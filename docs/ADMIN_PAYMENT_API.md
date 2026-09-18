@@ -14,6 +14,8 @@ Prefix default /api/v1/admin/payments (koleksi tanpa trailing slash).
 | Metode | Path relatif | Data |
 | --- | --- | --- |
 | GET | koleksi | Daftar payment |
+| GET | /summary | Agregasi count/nominal per status dan client |
+| GET | /export | Export JSON bounded ledger payment |
 | GET | /{payment_id} | Detail ringkas ledger |
 | GET | /{payment_id}/history | Riwayat perubahan status |
 | GET | /{payment_id}/attempts | Ringkasan attempt |
@@ -81,6 +83,20 @@ Antrean rekonsiliasi tersedia di [ADMIN_RECONCILIATION_API.md](ADMIN_RECONCILIAT
 tetapi worker inquiry otomatis belum tersedia. Reporting, export, PII permission,
 Dashboard agregasi dan settlement masih TODO; refund maker-checker internal kini tersedia di `ADMIN_REFUND_API.md`.
 Tidak ada transaksi gateway nyata yang dibuat oleh tes admin ledger.
+
+`GET /export` memakai filter daftar yang sama, limit 1-5000, dan mengembalikan
+snapshot JSON bounded dengan `snapshot_at`, `has_more`, serta `next_cursor`.
+Request berikutnya mengirim `cursor` dan `snapshot_at` dari response pertama;
+server memakai urutan `(created_at DESC, id DESC)` sehingga insert baru tidak
+menjadi field ledger yang sudah disanitasi. Setiap akses summary/export dicatat
+sebagai `PAYMENT_SUMMARY_VIEWED` atau `PAYMENT_EXPORT_VIEWED`; audit hanya
+menyimpan actor dan ringkasan filter.
+
+`GET /summary` read-only mengembalikan `by_status` dan `by_client` dengan
+`payment_count` serta `amount` IDR. Filter yang tersedia `client_id`, `status`,
+`created_from`, dan `created_to`. Agregasi langsung dari `payment_transactions`
+sehingga attempt tidak menggandakan jumlah. Endpoint tidak mengembalikan PII,
+metadata, atau data provider.
 
 Referensi resmi diperiksa kembali:
 [Midtrans notifications](https://docs.midtrans.com/docs/https-notification-webhooks) dan

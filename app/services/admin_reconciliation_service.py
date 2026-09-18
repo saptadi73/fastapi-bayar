@@ -34,7 +34,7 @@ async def request_case(db, actor_id: UUID, attempt_id: UUID, reason: str):
     attempt = await db.scalar(select(PaymentAttempt).where(PaymentAttempt.id == attempt_id).with_for_update())
     if not attempt:
         raise AppError("ATTEMPT_NOT_FOUND", "Payment attempt tidak ditemukan", 404)
-    if attempt.gateway != "MIDTRANS":
+    if attempt.gateway not in {"MIDTRANS", "DOKU"}:
         raise AppError("RECONCILIATION_UNSUPPORTED", "Gateway attempt belum mendukung inquiry", 422)
     if attempt.status not in {"INITIATED", "UNKNOWN", "PENDING"}:
         raise AppError("RECONCILIATION_NOT_REQUIRED", "Attempt tidak membutuhkan inquiry saat ini", 409)

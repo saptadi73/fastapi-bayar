@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,13 +35,19 @@ class Settings(BaseSettings):
     client_api_secret: str = "change-me-local-only"
     doku_enabled: bool = False
     doku_environment: str = "SANDBOX"
+    doku_base_url: str | None = None
     doku_sandbox_base_url: str = "https://api-sandbox.doku.com"
     doku_production_base_url: str = "https://api.doku.com"
     doku_client_id: str = ""
     doku_secret_key: str = ""
     doku_public_key: str = ""
+    doku_timestamp_tolerance_seconds: int = Field(default=300, ge=30, le=900)
     midtrans_enabled: bool = False
     midtrans_environment: str = "SANDBOX"
+    midtrans_is_production: bool | None = Field(
+        default=None,
+        validation_alias=AliasChoices("MIDTRANS_IS_PRODUCTION", "midtrans_is_production"),
+    )
     midtrans_sandbox_base_url: str = "https://app.sandbox.midtrans.com"
     midtrans_production_base_url: str = "https://app.midtrans.com"
     midtrans_server_key: str = ""
@@ -68,6 +74,14 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_prefix(cls, value: str) -> str:
         return "/" + value.strip("/")
+
+    @model_validator(mode="after")
+    def apply_provider_environment_aliases(self):
+        if self.midtrans_is_production is True:
+            self.midtrans_environment = "PRODUCTION"
+        elif self.midtrans_is_production is False and self.midtrans_environment.upper() == "PRODUCTION":
+            self.midtrans_environment = "SANDBOX"
+        return self
 
     def validate_production(self) -> None:
         if self.hmac_clock_skew_seconds <= 0 or self.nonce_ttl_seconds < 2 * self.hmac_clock_skew_seconds:

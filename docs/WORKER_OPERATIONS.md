@@ -5,7 +5,8 @@
 Worker terpisah dari proses FastAPI: pengiriman callback Payment ke Portal Event,
 cleanup checkout session expired, dan rekonsiliasi case admin yang sudah diminta.
 Worker tidak membuat charge, tidak menjalankan inquiry provider, tidak mengubah payment menjadi EXPIRED, dan tidak menghapus ledger,
-idempotency record, callback atau audit webhook. DOKU inquiry masih TODO.
+idempotency record, callback atau audit webhook. DOKU inquiry kini tersedia melalui
+adapter Check Status dan antrean rekonsiliasi.
 
 ## Menjalankan
 
@@ -66,7 +67,8 @@ RUNNING dan commit sebelum network provider. Setelah inquiry case menjadi COMPLE
 dengan result status, atau FAILED dengan error code terkontrol. UNRESOLVED berarti
 inquiry selesai tetapi provider belum menemukan transaksi; bukan PAID atau FAILED.
 Midtrans Core memakai adapter dan processor ledger yang sama dengan jalur webhook.
-DOKU belum diproses oleh worker.
+DOKU inquiry diproses oleh worker rekonsiliasi dengan adapter Check Status Non-SNAP;
+charge/refund DOKU tetap menunggu kontrak product/channel.
 
 Refund `--jobs refunds` mengambil refund `APPROVED` memakai `FOR UPDATE SKIP LOCKED`,
 mengubahnya ke `PROCESSING`, lalu mengirim Midtrans Core Refund memakai `refund_no`
@@ -75,8 +77,9 @@ sebagai `refund_key`. Respons `refund`/`partial_refund` dicatat sebagai
 Midtrans, mencocokkan `refund_key` dan nominal di riwayat refund, lalu baru menulis
 `SUCCEEDED` serta `PARTIALLY_REFUNDED`/`REFUNDED`. Refund DOKU belum dijalankan oleh worker.
 
-Cleanup menghapus permanen hanya CheckoutSession dengan expires_at <= waktu saat
-job mulai. Sesi aktif tidak dihapus; tidak menonaktifkan payment. Token expired tidak
+Cleanup menghapus permanen CheckoutSession dengan expires_at <= waktu saat job mulai,
+serta AdminSession yang expired/idle dan login-throttle bucket yang sudah melewati
+dua window retensi. Sesi aktif tidak dihapus; tidak menonaktifkan payment. Token expired tidak
 perlu dipulihkan: minta checkout baru via backend bila payment masih memenuhi syarat.
 Job cleanup belum dijalankan terhadap data aplikasi saat implementasi ini.
 

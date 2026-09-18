@@ -7,7 +7,7 @@ import pytest
 
 from app.core.errors import AppError
 from app.models.payment import PaymentStatus
-from app.services.webhook_service import process_midtrans_notification, validate_midtrans_event
+from app.services.webhook_service import process_doku_notification, process_midtrans_notification, validate_midtrans_event
 
 
 def notification(**changes):
@@ -66,4 +66,58 @@ async def test_paid_payment_does_not_emit_second_callback(provider_status):
     assert events[0].processing_status == "IGNORED"
     assert "signature_key" not in events[0].payload
     callback.assert_not_awaited()
+    db.commit.assert_awaited_once()
+
+
+def doku_notification(status: str) -> dict:
+    return {
+        "order": {"invoice_number": "DOKU-ORDER-1", "amount": "100000"},
+        "transaction": {"status": status},
+    }
+
+
+@pytest.mark.asyncio
+async def test_doku_duplicate_delivery_is_idempotent():
+    duplicate = SimpleNamespace(id=uuid.uuid4(), processing_status="PROCESSED")
+    db = AsyncMock()
+    db.scalar.return_value = duplicate
+
+    result = await process_doku_notification(
+        db,
+        "merchant-1",
+        doku_notification("SUCCESS"),
+        b"same-body",
+        {},
+        "/api/v1/webhooks/doku/merchant-1",
+        trusted_provider_response=True,
+    )
+
+    assert result["duplicate"] is True
+    db.add.assert_not_called()
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_status", ["PENDING", "FAILED"])
+async def test_doku_out_of_order_or_late_event_is_quarantined(provider_status):
+    payment = SimpleNamespace(id=uuid.uuid4(), amount=100000, currency="IDR", status=PaymentStatus.PAID)
+    attempt = SimpleNamespace(payment_id=payment.id, status="PAID")
+    event = []
+    db = AsyncMock()
+    db.scalar.side_effect = [None, attempt, payment]
+    db.add = event.append
+
+    with pytest.raises(AppError) as error:
+        await process_doku_notification(
+            db,
+            "merchant-1",
+            doku_notification(provider_status),
+            provider_status.encode(),
+            {},
+            "/api/v1/webhooks/doku/merchant-1",
+            trusted_provider_response=True,
+        )
+
+    assert error.value.code == "LATE_STATUS_REVIEW_REQUIRED"
+    assert event[0].processing_status == "QUARANTINED"
     db.commit.assert_awaited_once()

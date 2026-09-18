@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from app.core.config import get_settings
 from app.core.database import SessionLocal
 from app.services.callback_service import deliver_pending_callbacks
-from app.services.maintenance_service import cleanup_expired_checkouts
+from app.services.maintenance_service import cleanup_admin_retention, cleanup_expired_checkouts, cleanup_expired_nonces
 from app.services.reconciliation_worker_service import reconciliation_tick
 from app.services.refund_worker_service import refund_tick
 
@@ -29,7 +29,13 @@ async def callback_tick() -> dict[str, int]:
 
 async def cleanup_tick() -> dict[str, int]:
     async with SessionLocal() as db:
-        return await cleanup_expired_checkouts(db, get_settings().worker_cleanup_batch_size)
+        settings = get_settings()
+        result = await cleanup_expired_checkouts(db, settings.worker_cleanup_batch_size)
+        result.update(await cleanup_expired_nonces(db, settings.worker_cleanup_batch_size))
+        result.update(await cleanup_admin_retention(db, settings.worker_cleanup_batch_size,
+                                                    settings.admin_idle_ttl_seconds,
+                                                    settings.admin_login_window_seconds))
+        return result
 
 
 async def periodic_job(name: str, operation: Callable[[], Awaitable[dict]],

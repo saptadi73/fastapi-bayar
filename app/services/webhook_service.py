@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.gateways.midtrans.verifier import verify_legacy_notification
+from app.gateways.doku.client import DokuDirectClient
 from app.models.payment import Client, PaymentAttempt, PaymentStatus, PaymentTransaction, WebhookEvent
 from app.services.callback_service import enqueue_payment_callback
 from app.services.payment_service import transition
@@ -62,6 +63,58 @@ async def process_midtrans_notification(db: AsyncSession, merchant_code: str, pa
     if not settings.midtrans_server_key or not verify_legacy_notification(payload, settings.midtrans_server_key):
         raise AppError("INVALID_GATEWAY_SIGNATURE", "Signature notification Midtrans tidak valid", 401)
     return await apply_midtrans_event(db, merchant_code, payload, raw_body, source="MIDTRANS_WEBHOOK")
+
+
+async def process_doku_notification(db: AsyncSession, merchant_code: str, payload: dict[str, Any], raw_body: bytes, headers: dict[str, str], request_target: str, *, trusted_provider_response: bool = False) -> dict[str, Any]:
+    settings = get_settings()
+    if not isinstance(payload, dict) or (not trusted_provider_response and not DokuDirectClient.verify_notification_signature(headers, raw_body, request_target, settings)):
+        raise AppError("INVALID_GATEWAY_SIGNATURE", "Signature notification DOKU tidak valid", 401)
+    payload_hash = hashlib.sha256(raw_body).hexdigest()
+    duplicate = await db.scalar(select(WebhookEvent).where(WebhookEvent.gateway == "DOKU", WebhookEvent.merchant_code == merchant_code, WebhookEvent.payload_hash == payload_hash))
+    if duplicate:
+        return {"accepted": True, "duplicate": True, "webhook_id": str(duplicate.id), "status": duplicate.processing_status}
+    event = WebhookEvent(gateway="DOKU", merchant_code=merchant_code, provider_event_id=headers.get("request-id"), payload_hash=payload_hash,
+                         payload={k: payload.get(k) for k in ("order", "transaction", "service", "channel")}, signature_valid=not trusted_provider_response, processing_status="RECEIVED")
+    db.add(event)
+    await db.flush()
+    order = payload.get("order") or {}
+    transaction = payload.get("transaction") or {}
+    order_id = str(order.get("invoice_number") or "")
+    attempt = await db.scalar(select(PaymentAttempt).where(PaymentAttempt.gateway == "DOKU", PaymentAttempt.gateway_order_id == order_id))
+    if not attempt:
+        event.processing_status = "QUARANTINED"
+        await db.commit()
+        raise AppError("UNKNOWN_GATEWAY_ORDER", "Order DOKU tidak ditemukan", 404, {"order_id": order_id, "webhook_id": str(event.id)})
+    payment = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.id == attempt.payment_id).with_for_update())
+    try:
+        amount = Decimal(str(order.get("amount", "")))
+        if amount != Decimal(payment.amount):
+            raise AppError("GATEWAY_AMOUNT_MISMATCH", "Nominal DOKU berbeda dari ledger", 409)
+        mapping = {"SUCCESS": PaymentStatus.PAID, "FAILED": PaymentStatus.FAILED, "EXPIRED": PaymentStatus.EXPIRED,
+                   "REFUNDED": PaymentStatus.REFUNDED, "PENDING": PaymentStatus.PENDING,
+                   "TIMEOUT": PaymentStatus.PENDING, "REDIRECT": PaymentStatus.PENDING}
+        target = mapping.get(str(transaction.get("status") or "").upper())
+        if target is None:
+            raise AppError("UNKNOWN_PROVIDER_STATUS", "Status DOKU belum memiliki mapping", 422)
+        current = PaymentStatus(payment.status)
+        if target == PaymentStatus.REFUNDED:
+            raise AppError("REFUND_RECONCILIATION_REQUIRED", "Refund DOKU memerlukan rekonsiliasi nominal", 409)
+        if target == PaymentStatus.PAID and current in {PaymentStatus.PAID, PaymentStatus.REFUND_PENDING, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED}:
+            event.processing_status = "IGNORED"
+        elif target == current:
+            event.processing_status = "IGNORED"
+        elif current in {PaymentStatus.PAID, PaymentStatus.REFUND_PENDING, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED}:
+            raise AppError("LATE_STATUS_REVIEW_REQUIRED", "Status DOKU terlambat memerlukan review", 409)
+        else:
+            await transition(db, payment, target, "DOKU_WEBHOOK", "Verified DOKU notification")
+            attempt.status = target.value
+            event.processing_status = "PROCESSED"
+    except AppError:
+        event.processing_status = "QUARANTINED"
+        await db.commit()
+        raise
+    await db.commit()
+    return {"accepted": True, "duplicate": False, "webhook_id": str(event.id), "status": event.processing_status, "payment_id": str(payment.id)}
 
 
 async def apply_midtrans_event(db: AsyncSession, merchant_code: str, payload: dict, raw_body: bytes, *, source: str) -> dict:

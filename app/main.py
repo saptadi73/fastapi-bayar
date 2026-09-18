@@ -1,4 +1,7 @@
 import uuid
+import logging
+import re
+from time import perf_counter
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -18,9 +21,11 @@ from app.api.v1.admin_services import router as admin_services_router
 from app.api.v1.admin_payments import router as admin_payments_router
 from app.api.v1.admin_reconciliation import router as admin_reconciliation_router
 from app.api.v1.admin_refunds import router as admin_refunds_router
+from app.api.v1.admin_portal import router as admin_portal_router, users_router as admin_portal_users_router
 from app.core.config import get_settings
 from app.core.database import Base, check_database, engine
 from app.core.errors import AppError
+from app.core.logging import configure_logging
 from app.models import payment  # noqa: F401
 
 @asynccontextmanager
@@ -32,7 +37,10 @@ async def lifespan(app: FastAPI):
     yield
     await engine.dispose()
 
-app = FastAPI(title=get_settings().app_name, version="0.1.0", lifespan=lifespan)
+settings = get_settings()
+configure_logging(settings.log_level)
+logger = logging.getLogger("payment.http")
+app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 static_dir = Path(__file__).parent / "static"
 app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
 
@@ -51,12 +59,28 @@ async def checkout_config():
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
-    request.state.request_id = request.headers.get("X-Request-ID", f"req_{uuid.uuid4().hex}")
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request.state.request_id
-    response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    return response
+    supplied = request.headers.get("X-Request-ID", "")
+    request.state.request_id = supplied if re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", supplied) else f"req_{uuid.uuid4().hex}"
+    started = perf_counter()
+    response = None
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        if response is not None:
+            response.headers["X-Request-ID"] = request.state.request_id
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Referrer-Policy"] = "no-referrer"
+        logger.info(
+            "http_request",
+            extra={
+                "request_id": request.state.request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code if response is not None else 500,
+                "duration_ms": round((perf_counter() - started) * 1000, 2),
+            },
+        )
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError):
@@ -70,7 +94,7 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 @app.get("/health", tags=["System"])
 async def health():
-    return {"data": {"status": "ok", "service": get_settings().app_name}}
+    return {"data": {"status": "ok", "service": settings.app_name}}
 
 
 @app.get("/health/database", tags=["System"])
@@ -101,3 +125,5 @@ app.include_router(admin_services_router, prefix=get_settings().api_prefix)
 app.include_router(admin_payments_router, prefix=get_settings().api_prefix)
 app.include_router(admin_reconciliation_router, prefix=get_settings().api_prefix)
 app.include_router(admin_refunds_router, prefix=get_settings().api_prefix)
+app.include_router(admin_portal_router, prefix=get_settings().api_prefix)
+app.include_router(admin_portal_users_router, prefix=get_settings().api_prefix)

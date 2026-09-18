@@ -45,7 +45,8 @@ operator juga dapat menjalankan satu attempt secara manual:
 
 Script dan worker memakai Midtrans Core status dan processor ledger/webhook yang sama.
 Jangan membuat reference/order baru karena UNKNOWN. Backoff/fairness lanjutan,
-multi-merchant routing, DOKU inquiry dan sandbox UAT tetap TODO.
+multi-merchant routing, DOKU charge/refund dan sandbox UAT tetap TODO; DOKU Check
+Status Non-SNAP kini sudah didukung pada attempt gateway DOKU.
 
 Frontend harus menampilkan status antrean, disable double-submit, dan tidak menganggap
 202 sebagai PAID. Jika timeout, cek daftar/detail dahulu; jangan auto-retry.

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.errors import AppError
 from app.models.payment import WebhookEvent
-from app.services.webhook_service import process_midtrans_notification
+from app.services.webhook_service import process_midtrans_notification, process_doku_notification
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -21,6 +21,17 @@ async def receive_midtrans_webhook(merchant_code: str, request: Request, db: Asy
     except (json.JSONDecodeError, UnicodeDecodeError):
         raise AppError("INVALID_WEBHOOK_BODY", "Body webhook harus JSON valid", 422)
     return {"data": await process_midtrans_notification(db, merchant_code, payload, body)}
+
+@router.post("/doku/{merchant_code}", status_code=status.HTTP_200_OK)
+async def receive_doku_webhook(merchant_code: str, request: Request, db: AsyncSession = Depends(get_db)):
+    body = await request.body()
+    try:
+        payload = json.loads(body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise AppError("INVALID_WEBHOOK_BODY", "Body webhook harus JSON valid", 422)
+    target = request.url.path
+    headers = {key.lower(): value for key, value in request.headers.items()}
+    return {"data": await process_doku_notification(db, merchant_code, payload, body, headers, target)}
 
 @router.post("/{gateway}/{merchant_code}", status_code=status.HTTP_202_ACCEPTED)
 async def receive_webhook(gateway: str, merchant_code: str, request: Request, db: AsyncSession = Depends(get_db)):

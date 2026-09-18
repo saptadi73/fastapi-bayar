@@ -15,10 +15,10 @@ from sqlalchemy.schema import CreateSchema, DropSchema
 
 from app.core.config import get_settings
 from app.core.database import Base
-from app.models.payment import CallbackDelivery, CheckoutSession, Client, PaymentTransaction, Service, PaymentAttempt, ReconciliationCase
+from app.models.payment import CallbackDelivery, CheckoutSession, Client, NonceRecord, PaymentTransaction, Service, PaymentAttempt, ReconciliationCase
 from app.services import worker_service
 from app.services.callback_service import callback_signature, deliver_pending_callbacks
-from app.services.maintenance_service import cleanup_expired_checkouts
+from app.services.maintenance_service import cleanup_expired_checkouts, cleanup_expired_nonces
 
 
 @pytest.mark.asyncio
@@ -213,6 +213,21 @@ async def test_cleanup_bounded_preserves_active_and_ledger(worker_db):
         assert await db.scalar(select(func.count()).select_from(CheckoutSession)) == 1
         assert await db.scalar(select(func.count()).select_from(PaymentTransaction)) == 1
         assert await cleanup_expired_checkouts(db) == {"expired_checkouts_deleted": 0}
+
+
+@pytest.mark.asyncio
+async def test_cleanup_expired_nonces_is_bounded(worker_db):
+    _, _, client_id = worker_db
+    now = datetime.now(timezone.utc)
+    async with worker_db[0]() as db:
+        for i in range(3):
+            db.add(NonceRecord(client_id=client_id, nonce=f"cleanup-{i}",
+                               expires_at=now + timedelta(hours=1 if i == 2 else -1)))
+        await db.commit()
+    async with worker_db[0]() as db:
+        assert await cleanup_expired_nonces(db, 1) == {"expired_nonces_deleted": 1}
+        assert await cleanup_expired_nonces(db, 10) == {"expired_nonces_deleted": 1}
+        assert await db.scalar(select(func.count()).select_from(NonceRecord)) == 1
 
 
 @pytest.mark.asyncio

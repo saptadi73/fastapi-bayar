@@ -9,6 +9,13 @@ MFA, reset password atau role editor. Target UI lengkap tetap di ADMIN_FRONTEND_
 Service per-client: [ADMIN_SERVICE_API.md](ADMIN_SERVICE_API.md), list/detail/create/update.
 SUPER_ADMIN/INTEGRATION_ADMIN mendapat admin.services.read/manage; AUDITOR hanya read.
 
+Portal event read-only tersedia pada `GET /admin/clients/{client_id}/events` dan
+`GET /admin/clients/{client_id}/events/{event_id}` dengan `admin.payments.read`.
+Response hanya memuat identitas event non-PII; PortalUser/email masih menunggu
+permission PII terpisah dan audit master-data. Listing payer kini tersedia pada
+`GET /admin/clients/{client_id}/portal-users` dan hanya SUPER_ADMIN dengan
+`admin.portal_users.read`; response mengandung PII dan setiap akses diaudit.
+
 ## Aktivasi
 
 ADMIN_ENABLED default false di .env.example; .env lokal development diset true.

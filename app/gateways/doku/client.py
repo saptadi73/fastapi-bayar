@@ -21,9 +21,30 @@ class DokuDirectClient:
 
     name = "DOKU"
 
+    @staticmethod
+    def verify_notification_signature(headers: dict[str, str], raw_body: bytes, request_target: str, settings: Settings) -> bool:
+        client_id = headers.get("client-id", "")
+        request_id = headers.get("request-id", "")
+        timestamp = headers.get("request-timestamp", "")
+        supplied = headers.get("signature", "")
+        if not settings.doku_client_id or not settings.doku_secret_key or client_id != settings.doku_client_id:
+            return False
+        if not request_id or len(request_id) > 128 or not timestamp:
+            return False
+        try:
+            received_at = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            if received_at.tzinfo is None or abs((datetime.now(timezone.utc) - received_at).total_seconds()) > settings.doku_timestamp_tolerance_seconds:
+                return False
+        except ValueError:
+            return False
+        digest = base64.b64encode(hashlib.sha256(raw_body).digest()).decode()
+        component = f"Client-Id:{client_id}\nRequest-Id:{request_id}\nRequest-Timestamp:{timestamp}\nRequest-Target:{request_target}\nDigest:{digest}"
+        expected = "HMACSHA256=" + base64.b64encode(hmac.new(settings.doku_secret_key.encode(), component.encode(), hashlib.sha256).digest()).decode()
+        return hmac.compare_digest(supplied, expected)
+
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.base_url = settings.doku_production_base_url if settings.doku_environment.upper() == "PRODUCTION" else settings.doku_sandbox_base_url
+        self.base_url = settings.doku_base_url or (settings.doku_production_base_url if settings.doku_environment.upper() == "PRODUCTION" else settings.doku_sandbox_base_url)
 
     def _signature(self, request_id: str, timestamp: str, target: str) -> str:
         if not self.settings.doku_client_id or not self.settings.doku_secret_key:
