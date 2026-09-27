@@ -1,6 +1,6 @@
 # Admin Reconciliation API
 
-Aktif development setelah migration 0016/0017. Modul ini membuat antrean inquiry yang
+Aktif development setelah migration 0016/0017/0020. Modul ini membuat antrean inquiry yang
 aman; belum menjalankan request gateway dari HTTP admin.
 
 ## Endpoint dan permission
@@ -21,7 +21,7 @@ tidak mendapat akses. POST membutuhkan cookie admin, exact Origin dan X-CSRF-Tok
 {"reason":"Status gateway belum pasti setelah timeout"}
 ```
 
-Hanya attempt MIDTRANS dengan status INITIATED, UNKNOWN atau PENDING yang dapat diminta.
+Attempt MIDTRANS atau DOKU dengan status INITIATED, UNKNOWN atau PENDING yang dapat diminta.
 Satu attempt memiliki satu case; request berulang saat REQUESTED/RUNNING mengembalikan
 case yang sama. Case COMPLETED tidak dibuat ulang; FAILED dapat diminta kembali dengan
 alasan baru. Unique index PostgreSQL menjadi idempotency boundary.
@@ -36,22 +36,23 @@ gateway, token dan secret tidak ditampilkan.
 
 ## Lifecycle
 
-Target status: REQUESTED -> RUNNING -> COMPLETED/FAILED. Worker otomatis mengambil queue;
+Target status: REQUESTED -> RUNNING -> COMPLETED/FAILED. Error provider sementara menjadi
+`RETRY_WAIT` dengan exponential backoff sampai batas konfigurasi. Worker otomatis mengambil queue;
 operator juga dapat menjalankan satu attempt secara manual:
 
 ```powershell
 .\venv\Scripts\python.exe scripts\reconcile_attempt.py <attempt_uuid>
 ```
 
-Script dan worker memakai Midtrans Core status dan processor ledger/webhook yang sama.
-Jangan membuat reference/order baru karena UNKNOWN. Backoff/fairness lanjutan,
-multi-merchant routing, DOKU charge/refund dan sandbox UAT tetap TODO; DOKU Check
-Status Non-SNAP kini sudah didukung pada attempt gateway DOKU.
+Script dan worker memakai adapter provider serta processor ledger/webhook yang sama.
+Jangan membuat reference/order baru karena UNKNOWN. Fairness lanjutan, multi-merchant
+routing, DOKU product/channel tambahan, refund DOKU API, dan sandbox UAT tetap TODO;
+DOKU Check Status Non-SNAP kini sudah didukung pada attempt gateway DOKU.
 
 Frontend harus menampilkan status antrean, disable double-submit, dan tidak menganggap
 202 sebagai PAID. Jika timeout, cek daftar/detail dahulu; jangan auto-retry.
 Audit `RECONCILIATION_REQUESTED` menyimpan actor/payment UUID/reason/waktu; jangan isi
-reason dengan credential/PII. Audit access-read dan alert backlog masih TODO.
+reason dengan credential/PII. Alert backlog masih TODO.
 
 Referensi: [Midtrans notification](https://docs.midtrans.com/docs/https-notification-webhooks)
 dan [DOKU best practice](https://developers.doku.com/get-started-with-doku-api/notification/best-practice).

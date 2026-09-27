@@ -25,3 +25,11 @@ async def check_database() -> dict[str, str]:
     async with engine.connect() as connection:
         await connection.execute(text("SELECT 1"))
     return {"status": "ok", "database": "connected"}
+
+
+async def verify_migration_head(expected_revision: str) -> None:
+    """Fail closed when production starts against an older/different schema."""
+    async with engine.connect() as connection:
+        current_revision = await connection.scalar(text("SELECT version_num FROM alembic_version LIMIT 1"))
+    if current_revision != expected_revision:
+        raise RuntimeError("Database migration head tidak sesuai dengan aplikasi")

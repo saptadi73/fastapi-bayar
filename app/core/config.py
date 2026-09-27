@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     db_pool_timeout: int = 30
     db_echo: bool = False
     auto_create_tables: bool = False
+    migration_gate_enabled: bool = True
+    migration_head: str = "20260918_0020"
     auth_enabled: bool = True
     admin_enabled: bool = False
     admin_session_ttl_seconds: int = Field(default=28800, ge=300, le=86400)
@@ -63,6 +65,8 @@ class Settings(BaseSettings):
     worker_cleanup_batch_size: int = Field(default=500, ge=1, le=10000)
     worker_reconciliation_interval_seconds: float = Field(default=60, ge=1, le=3600)
     worker_reconciliation_batch_size: int = Field(default=10, ge=1, le=100)
+    worker_reconciliation_max_attempts: int = Field(default=3, ge=1, le=10)
+    worker_reconciliation_backoff_seconds: int = Field(default=30, ge=1, le=3600)
     worker_refund_interval_seconds: float = Field(default=30, ge=1, le=3600)
     worker_refund_batch_size: int = Field(default=10, ge=1, le=100)
     redis_url: str = "redis://127.0.0.1:6379/2"
@@ -95,6 +99,8 @@ class Settings(BaseSettings):
                 raise ValueError("AUTH_ENABLED wajib true pada production")
             if self.auto_create_tables or self.debug or self.db_echo:
                 raise ValueError("Production wajib menonaktifkan AUTO_CREATE_TABLES, APP_DEBUG, dan DB_ECHO")
+            if not self.migration_gate_enabled:
+                raise ValueError("MIGRATION_GATE_ENABLED wajib true pada production")
             if not self.public_base_url.startswith("https://"):
                 raise ValueError("PUBLIC_BASE_URL production wajib HTTPS")
         if self.environment.lower() == "production" and self.client_api_secret == "change-me-local-only":

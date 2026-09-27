@@ -1,4 +1,4 @@
-"""At-least-once provider refund worker for approved Midtrans refunds."""
+"""At-least-once provider refund worker with explicit DOKU manual gate."""
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select
@@ -20,12 +20,20 @@ async def claim_refund(db):
         return None
     refund, payment = row
     attempt = await db.scalar(select(PaymentAttempt).where(
-        PaymentAttempt.payment_id == payment.id, PaymentAttempt.gateway == "MIDTRANS"
+        PaymentAttempt.payment_id == payment.id
     ).order_by(PaymentAttempt.attempt_no.desc()).limit(1))
     if not attempt:
         refund.status, refund.provider_error_code, refund.completed_at = "FAILED", "MIDTRANS_ATTEMPT_NOT_FOUND", datetime.now(timezone.utc)
         await db.commit()
         return "failed", refund.id
+    if attempt.gateway == "DOKU":
+        refund.status = "MANUAL_REQUIRED"
+        refund.provider_status = "MANUAL_SUPPORT"
+        refund.provider_error_code = "DOKU_MANUAL_REFUND_REQUIRED"
+        refund.attempted_at = datetime.now(timezone.utc)
+        refund.version += 1
+        await db.commit()
+        return "manual_required", refund.id
     refund.status = "PROCESSING"
     refund.attempted_at = datetime.now(timezone.utc)
     refund.version += 1
@@ -143,8 +151,9 @@ async def reconcile_provider_refunds() -> dict[str, int]:
 
 
 async def refund_tick() -> dict[str, int]:
-    totals = {"claimed": 0, "accepted": 0, "succeeded": 0, "pending": 0, "failed": 0}
-    if not get_settings().midtrans_enabled:
+    totals = {"claimed": 0, "accepted": 0, "succeeded": 0, "pending": 0, "failed": 0, "manual_required": 0}
+    settings = get_settings()
+    if not settings.midtrans_enabled and not settings.doku_enabled:
         return totals
     reconciled = await reconcile_provider_refunds()
     for key in ("claimed", "succeeded", "pending", "failed"):
@@ -154,8 +163,8 @@ async def refund_tick() -> dict[str, int]:
             claim = await claim_refund(db)
         if not claim:
             break
-        if claim[0] == "failed":
-            totals["failed"] += 1
+        if claim[0] in {"failed", "manual_required"}:
+            totals[claim[0]] += 1
             continue
         refund_id, order_id, refund_key, amount, reason = claim
         totals["claimed"] += 1

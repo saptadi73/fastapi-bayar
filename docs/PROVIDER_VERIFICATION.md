@@ -55,6 +55,9 @@ Charge/refund tetap product/channel-specific dan belum diaktifkan secara generik
 Iterasi berikutnya mengaktifkan hanya `DOKU_INDOMARET` melalui endpoint
 `/indomaret-online-to-offline/v2/payment-code`; channel DOKU lain tetap ditolak
 oleh registry sampai kontraknya dipetakan.
+Untuk channel non-card aktif, refund mengikuti prosedur manual DOKU; worker tidak
+menebak atau memakai endpoint refund product lain. API refund hanya boleh ditambahkan
+setelah product/channel merchant dikonfirmasi dan kontrak request/response diuji.
 Notification DOKU kini diverifikasi pada `/api/v1/webhooks/doku/{merchant_code}`;
 signature memakai digest body dan request target aktual, lalu event dideduplikasi
 berdasarkan hash body serta diproses hanya jika invoice dan nominal cocok.

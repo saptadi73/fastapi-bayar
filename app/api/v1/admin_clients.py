@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.admin import enabled, require
 from app.core.database import get_db
 from app.models.payment import Client
-from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret
-from app.services.admin_client_service import client_view, create_client, find_client, update_client, rotate_secret
+from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret, RevokeCheckouts
+from app.services.admin_client_service import (client_view, create_client, find_client, update_client,
+                                                rotate_secret, revoke_checkout_sessions)
 
 router = APIRouter(prefix="/admin/clients", tags=["Admin Clients"], dependencies=[Depends(enabled)])
 
@@ -38,3 +39,9 @@ async def update(client_id: UUID, payload: UpdateClient, identity=Depends(requir
 @router.post("/{client_id}/rotate-secret")
 async def rotate(client_id: UUID, payload: RotateClientSecret, identity=Depends(require("admin.clients.rotate_secret")), db: AsyncSession = Depends(get_db)):
     return {"data": await rotate_secret(db, identity[0].id, client_id, payload)}
+
+
+@router.post("/{client_id}/revoke-checkouts")
+async def revoke_checkouts(client_id: UUID, payload: RevokeCheckouts,
+                           identity=Depends(require("admin.clients.manage")), db: AsyncSession = Depends(get_db)):
+    return {"data": await revoke_checkout_sessions(db, identity[0].id, client_id, payload.reason)}

@@ -68,14 +68,23 @@ dengan result status, atau FAILED dengan error code terkontrol. UNRESOLVED berar
 inquiry selesai tetapi provider belum menemukan transaksi; bukan PAID atau FAILED.
 Midtrans Core memakai adapter dan processor ledger yang sama dengan jalur webhook.
 DOKU inquiry diproses oleh worker rekonsiliasi dengan adapter Check Status Non-SNAP;
-charge/refund DOKU tetap menunggu kontrak product/channel.
+charge DOKU Indomaret tersedia, sementara channel tambahan dan refund API DOKU tetap
+menunggu kontrak product/channel.
+
+Reconciliation provider error bersifat retryable sampai `WORKER_RECONCILIATION_MAX_ATTEMPTS`;
+retry memakai exponential backoff berbasis `WORKER_RECONCILIATION_BACKOFF_SECONDS` dan
+status `RETRY_WAIT`. Setelah batas tercapai, case menjadi `FAILED`.
 
 Refund `--jobs refunds` mengambil refund `APPROVED` memakai `FOR UPDATE SKIP LOCKED`,
 mengubahnya ke `PROCESSING`, lalu mengirim Midtrans Core Refund memakai `refund_no`
 sebagai `refund_key`. Respons `refund`/`partial_refund` dicatat sebagai
 `PROVIDER_ACCEPTED`, bukan langsung `REFUNDED`. Batch berikutnya melakukan inquiry
 Midtrans, mencocokkan `refund_key` dan nominal di riwayat refund, lalu baru menulis
-`SUCCEEDED` serta `PARTIALLY_REFUNDED`/`REFUNDED`. Refund DOKU belum dijalankan oleh worker.
+`SUCCEEDED` serta `PARTIALLY_REFUNDED`/`REFUNDED`. Untuk channel aktif DOKU non-card,
+worker menandai refund sebagai `MANUAL_REQUIRED` dengan kode
+`DOKU_MANUAL_REFUND_REQUIRED`; worker tidak mengirimnya ke adapter Midtrans.
+Operator harus mengikuti prosedur DOKU support dan memverifikasi bukti sebelum
+finalisasi ledger.
 
 Cleanup menghapus permanen CheckoutSession dengan expires_at <= waktu saat job mulai,
 serta AdminSession yang expired/idle dan login-throttle bucket yang sudah melewati

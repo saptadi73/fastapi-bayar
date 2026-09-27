@@ -100,7 +100,9 @@ class PaymentAttempt(Base):
 
 class ReconciliationCase(Base):
     __tablename__ = "reconciliation_cases"
-    __table_args__ = (Index("ix_reconciliation_cases_attempt_id", "attempt_id", unique=True), Index("ix_reconciliation_cases_status", "status"))
+    __table_args__ = (Index("ix_reconciliation_cases_attempt_id", "attempt_id", unique=True),
+                      Index("ix_reconciliation_cases_status", "status"),
+                      Index("ix_reconciliation_cases_retry_due", "status", "next_retry_at"))
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     attempt_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("payment_attempts.id"))
     requested_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("admin_users.id"), nullable=True)
@@ -111,6 +113,8 @@ class ReconciliationCase(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     result_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class IdempotencyRecord(Base):

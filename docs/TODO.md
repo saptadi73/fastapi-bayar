@@ -23,7 +23,7 @@
 - [x] DOKU Non-SNAP signature verifier, timestamp freshness, deduplication, amount/order validation, status mapper.
 - [x] DOKU Check Status, Indomaret payment-code adapter, webhook, dan reconciliation worker integration.
 - [x] Webhook duplicate, out-of-order, late-event, quarantine, dan secret-redaction tests.
-- [x] Alembic migration chain sampai `20260918_0019`; `alembic check` bersih.
+- [x] Alembic migration chain sampai `20260918_0020`; `alembic check` bersih.
 - [x] Dokumentasi Frontend, Portal Event Client, Admin API, provider verification, worker operations, dan live credential runbook.
 - [x] `.gitignore` untuk `.env`, `.secrets`, virtual environment, `__pycache__`, dan `.pyc`; virtual environment tidak lagi tracked.
 
@@ -32,8 +32,10 @@
 ### Provider dan payment operation
 
 - [ ] DOKU adapter product/channel tambahan sesuai kontrak merchant aktif.
-- [ ] DOKU refund provider, webhook/inquiry refund, final ledger transition, dan settlement reconciliation.
-- [ ] Scheduler inquiry multi-merchant dengan backoff, fairness, metric backlog, dan routing credential merchant.
+- [x] DOKU refund gate untuk channel non-card aktif: tidak memanggil endpoint provider yang salah dan menandai `MANUAL_REQUIRED`.
+- [ ] DOKU refund API per product/channel yang mendukung API, webhook/inquiry refund, final ledger transition, dan settlement reconciliation.
+- [x] Scheduler reconciliation bounded retry/backoff dan retry-due index.
+- [ ] Scheduler inquiry multi-merchant dengan fairness, metric backlog, dan routing credential merchant.
 - [ ] Winning attempt eksplisit, late-paid/duplicate-paid reconciliation, dan cumulative refund validation.
 - [ ] Constraint database single active attempt dan aturan `attempt_no` bila diperlukan setelah load test.
 - [ ] Sandbox UAT Midtrans/DOKU untuk channel yang diaktifkan, termasuk pembayaran tanpa email.
@@ -45,7 +47,7 @@
 - [ ] Rate limiting terdistribusi dan audit autentikasi yang account-aware.
 - [ ] MFA enrollment/recovery, password reset, forced password change, invitation, dan reauthentication.
 - [ ] Role/permission configurable, per-client admin assignment, role editor, dan audit before/after lengkap.
-- [ ] Kebijakan revoke seluruh checkout/token per client.
+- [x] Kebijakan revoke seluruh checkout session per client dengan audit operator.
 - [ ] Recovery/rotasi callback secret dengan audit request ID dan redaksi field sensitif.
 - [ ] Admin provisioning UI, UI transaksi, UI service/channel, dan UI role/MFA.
 - [ ] Egress/DNS hardening, browser end-to-end test, security review, secret scanning, backup/restore test.
@@ -55,7 +57,7 @@
 - [x] Admin read-only listing/detail PortalEvent per client dengan tenant filter dan permission.
 - [x] Admin read-only listing PortalUser dengan permission PII terpisah, tenant filter, dan audit akses.
 - [ ] PortalUser CRUD, perubahan master-data, dan audit before/after.
-- [ ] Filter transaksi per event dengan permission dan redaksi PII yang eksplisit.
+- [x] Filter transaksi per event dengan `client_id` wajib, permission ledger, dan response tanpa PII.
 - [ ] Update payload portal existing untuk kontrak mandatory event/email.
 - [ ] Backfill data historis hanya setelah mapping event/email asli disetujui.
 - [ ] Organizer/service admin API, merchant account, routing rules, channel eligibility, dan feature flags.
@@ -71,7 +73,7 @@
 
 - [ ] Finalisasi OpenAPI admin, error-code catalog, pagination, concurrency, dan contract tests.
 - [ ] Unit test tambahan untuk seluruh state transition, money, idempotency, dan provider channel.
-- [ ] Migration gate production: `AUTO_CREATE_TABLES=false`, migration dijalankan sebelum startup.
+- [x] Migration gate production: `AUTO_CREATE_TABLES=false`, migration head diverifikasi sebelum startup.
 - [ ] Checklist deployment, secret rotation, backup/restore, sandbox UAT, dan approval live launch.
 
 ## Catatan status

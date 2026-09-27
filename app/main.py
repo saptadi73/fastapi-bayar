@@ -23,7 +23,7 @@ from app.api.v1.admin_reconciliation import router as admin_reconciliation_route
 from app.api.v1.admin_refunds import router as admin_refunds_router
 from app.api.v1.admin_portal import router as admin_portal_router, users_router as admin_portal_users_router
 from app.core.config import get_settings
-from app.core.database import Base, check_database, engine
+from app.core.database import Base, check_database, engine, verify_migration_head
 from app.core.errors import AppError
 from app.core.logging import configure_logging
 from app.models import payment  # noqa: F401
@@ -34,6 +34,8 @@ async def lifespan(app: FastAPI):
     if settings.auto_create_tables and settings.environment.lower() != "production":
         async with engine.begin() as connection:
             await connection.run_sync(Base.metadata.create_all)
+    if settings.environment.lower() == "production" and settings.migration_gate_enabled:
+        await verify_migration_head(settings.migration_head)
     yield
     await engine.dispose()
 

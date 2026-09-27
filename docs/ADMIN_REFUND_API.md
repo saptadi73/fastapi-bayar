@@ -6,7 +6,7 @@ Fondasi refund maker-checker tersedia di `/api/v1/admin/refunds`. Semua endpoint
 
 `POST /admin/refunds/{id}/approve` dan `/reject` membutuhkan `admin.refunds.approve` serta `{ "expected_version": 1 }`. Reject wajib menyertakan `reason`. Pengaju admin tidak boleh menyetujui refund sendiri. Setiap keputusan menulis `AdminAudit` dan menaikkan `version`.
 
-Approval internal menghasilkan status `APPROVED` dengan `provider_action: PENDING_ADAPTER`. Worker Midtrans memprosesnya memakai `refund_no` sebagai `refund_key`, lalu melakukan inquiry. Hanya riwayat dengan key dan nominal yang cocok yang menjadi `SUCCEEDED` dan mengubah ledger payment; `PROVIDER_ACCEPTED` tetap menunggu konfirmasi. Adapter DOKU, multi-merchant credentials, dan settlement reconciliation masih TODO.
+Approval internal menghasilkan status `APPROVED` dengan `provider_action: PENDING_ADAPTER`. Worker Midtrans memprosesnya memakai `refund_no` sebagai `refund_key`, lalu melakukan inquiry. Hanya riwayat dengan key dan nominal yang cocok yang menjadi `SUCCEEDED` dan mengubah ledger payment; `PROVIDER_ACCEPTED` tetap menunggu konfirmasi. Untuk channel aktif DOKU non-card, worker memakai `MANUAL_REQUIRED` dan kode `DOKU_MANUAL_REFUND_REQUIRED`; operator wajib mengikuti proses refund DOKU dan memverifikasi bukti sebelum finalisasi ledger.
 
 Kontrak provider yang menjadi dasar tahap berikutnya:
 

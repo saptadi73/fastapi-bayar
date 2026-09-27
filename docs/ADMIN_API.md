@@ -11,8 +11,7 @@ SUPER_ADMIN/INTEGRATION_ADMIN mendapat admin.services.read/manage; AUDITOR hanya
 
 Portal event read-only tersedia pada `GET /admin/clients/{client_id}/events` dan
 `GET /admin/clients/{client_id}/events/{event_id}` dengan `admin.payments.read`.
-Response hanya memuat identitas event non-PII; PortalUser/email masih menunggu
-permission PII terpisah dan audit master-data. Listing payer kini tersedia pada
+Response hanya memuat identitas event non-PII. Listing payer tersedia pada
 `GET /admin/clients/{client_id}/portal-users` dan hanya SUPER_ADMIN dengan
 `admin.portal_users.read`; response mengandung PII dan setiap akses diaudit.
 
@@ -110,7 +109,8 @@ Throttle shared PostgreSQL menghitung login dengan schema/Origin valid sebelum h
 password, termasuk login sukses; fixed window per peer IP, bukan per-account.
 Bukan perlindungan menyeluruh dari distributed attack/body flood. Reverse proxy harus
 mengatur trusted forwarded IP dengan benar; jangan percaya X-Forwarded-For sembarang.
-Bucket expired/session expired belum punya cleanup scheduler; ini TODO operasional.
+Cleanup bucket login dan session expired tersedia melalui worker cleanup; aktivasi worker
+sebagai service deployment tetap menjadi tanggung jawab environment.
 
 Audit minimal: BOOTSTRAP, LOGIN_SUCCEEDED, LOGIN_FAILED, LOGOUT; actor login gagal null,
 tanpa identitas yang dicoba, password, token atau payload. Belum audit denied/rate-limit,

@@ -21,7 +21,7 @@ Prefix default /api/v1/admin/payments (koleksi tanpa trailing slash).
 | GET | /{payment_id}/attempts | Ringkasan attempt |
 
 payment_id adalah UUID internal. Tidak ada mutasi, inquiry gateway, cancel, refund,
-settlement, export atau pengiriman callback melalui endpoint ini.
+settlement atau pengiriman callback melalui endpoint ini.
 GET ini tidak membutuhkan CSRF; otorisasi/session tetap diperiksa backend.
 
 ## Filter daftar
@@ -49,7 +49,8 @@ Daftar diurutkan created_at DESC, id DESC. Tidak join attempts saat pagination s
 satu payment tetap satu baris meskipun punya beberapa attempt.
 Envelope {data:[...],meta:{limit,offset,has_more}}. Tidak ada total_count/agregasi nominal.
 Offset pagination bukan snapshot: insert/status berubah di antara request bisa menggeser
-halaman; refresh dari offset=0 saat filter berubah. Cursor/export snapshot masih TODO.
+halaman; refresh dari offset=0 saat filter berubah. Export cursor/snapshot tersedia pada
+endpoint `/export`.
 
 ## Field response
 
@@ -79,9 +80,9 @@ Tampilkan history dan state ledger apa adanya. Jangan mengubah status/tiket dari
 Data read-only adalah kondisi DB saat dibaca, bukan inquiry real-time provider.
 Setiap endpoint bisa membaca snapshot waktu berbeda; refresh untuk status terbaru.
 
-Antrean rekonsiliasi tersedia di [ADMIN_RECONCILIATION_API.md](ADMIN_RECONCILIATION_API.md),
-tetapi worker inquiry otomatis belum tersedia. Reporting, export, PII permission,
-Dashboard agregasi dan settlement masih TODO; refund maker-checker internal kini tersedia di `ADMIN_REFUND_API.md`.
+Antrean rekonsiliasi dan worker inquiry tersedia di [ADMIN_RECONCILIATION_API.md](ADMIN_RECONCILIATION_API.md).
+Export, PII permission, dan dashboard agregasi tersedia; settlement dan multi-merchant
+routing masih TODO. Refund maker-checker internal tersedia di `ADMIN_REFUND_API.md`.
 Tidak ada transaksi gateway nyata yang dibuat oleh tes admin ledger.
 
 `GET /export` memakai filter daftar yang sama, limit 1-5000, dan mengembalikan

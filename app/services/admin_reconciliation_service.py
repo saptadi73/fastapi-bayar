@@ -45,6 +45,7 @@ async def request_case(db, actor_id: UUID, attempt_id: UUID, reason: str):
         if case.status == "COMPLETED":
             return case, True
         case.status, case.error_code, case.reason = "REQUESTED", None, reason
+        case.retry_count, case.next_retry_at = 0, None
         case.requested_by, case.requested_at = actor_id, datetime.now(timezone.utc)
     else:
         case = ReconciliationCase(attempt_id=attempt_id, requested_by=actor_id, reason=reason)

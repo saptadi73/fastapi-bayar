@@ -16,6 +16,7 @@ code adalah client_id OAuth. Admin saat ini operator global, belum penugasan per
 | POST | / | admin.clients.manage |
 | PATCH | /{client_id} | admin.clients.manage |
 | POST | /{client_id}/rotate-secret | admin.clients.rotate_secret |
+| POST | /{client_id}/revoke-checkouts | admin.clients.manage |
 
 Gunakan path koleksi tanpa slash akhir: /api/v1/admin/clients.
 SUPER_ADMIN dan INTEGRATION_ADMIN mendapat ketiga permission. AUDITOR hanya read;
@@ -69,7 +70,8 @@ dapat diubah endpoint ini. Unknown fields ditolak. reason wajib nonblank.
 Update menaikkan version/token_version dan mencabut JWT client lama, termasuk perubahan
 nama. Event perlu memperoleh JWT baru dengan secret yang sama. active=false juga
 menolak checkout client. Mengaktifkan kembali dapat membuat checkout lama yang belum
-expired dapat diakses lagi; belum ada kebijakan revoke permanen seluruh checkout.
+expired dapat diakses lagi; gunakan endpoint revoke-checkouts untuk mencabut seluruh
+checkout session aktif milik client bila diperlukan.
 
 POST /{client_id}/rotate-secret body:
 
@@ -80,6 +82,11 @@ POST /{client_id}/rotate-secret body:
 Response memuat konfigurasi/version baru dan client_secret baru sekali saja.
 OAuth secret/JWT lama ditolak. Callback secret TIDAK berubah dan tidak ditampilkan;
 checkout token lama tidak dicabut oleh rotasi OAuth.
+
+POST `/{client_id}/revoke-checkouts` memakai body `{ "reason": "..." }` dan
+menghapus seluruh checkout session aktif milik client tersebut. Payment ledger,
+attempt, dan history tidak dihapus. Operasi dikunci pada client dan dicatat sebagai
+`CLIENT_CHECKOUTS_REVOKED`.
 Concurrent update/rotation diserialisasi row lock: hanya expected_version terkini
 yang diterima. CLI register_client --rotate juga menaikkan version yang sama.
 

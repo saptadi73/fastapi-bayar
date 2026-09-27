@@ -2,7 +2,7 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from app.core.access import allow_url, hash_secret, validate_registered_url
 from app.core.errors import AppError
 from app.models.admin import AdminAudit
-from app.models.payment import Client, Service
+from app.models.payment import CheckoutSession, Client, PaymentTransaction, Service
 from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret
 
 
@@ -96,3 +96,12 @@ async def rotate_secret(db: AsyncSession, actor_id, client_id, payload: RotateCl
     audit(db, actor_id, client, "CLIENT_SECRET_ROTATED", payload.reason)
     await db.commit()
     return {**client_view(client), "client_secret": secret}
+
+
+async def revoke_checkout_sessions(db: AsyncSession, actor_id, client_id: uuid.UUID, reason: str) -> dict:
+    client = await find_client(db, client_id, lock=True)
+    payment_ids = select(PaymentTransaction.id).where(PaymentTransaction.client_id == client.id)
+    result = await db.execute(delete(CheckoutSession).where(CheckoutSession.payment_id.in_(payment_ids)))
+    audit(db, actor_id, client, "CLIENT_CHECKOUTS_REVOKED", reason)
+    await db.commit()
+    return {"client_id": str(client.id), "checkout_sessions_revoked": result.rowcount or 0}

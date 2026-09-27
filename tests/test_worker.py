@@ -292,11 +292,11 @@ async def test_reconciliation_worker_claims_once_and_records_result(worker_db, m
 
     monkeypatch.setattr("app.services.reconciliation_worker_service.reconcile_attempt", inquiry)
     result = await worker_service.reconciliation_tick()
-    assert result == {"claimed": 1, "completed": 1, "failed": 0}
+    assert result == {"claimed": 1, "completed": 1, "retry_wait": 0, "failed": 0}
     async with sessions() as db:
         saved = await db.get(ReconciliationCase, case_id)
         assert saved.status == "COMPLETED" and saved.result_status == "UNRESOLVED"
-    assert (await worker_service.reconciliation_tick()) == {"claimed": 0, "completed": 0, "failed": 0}
+    assert (await worker_service.reconciliation_tick()) == {"claimed": 0, "completed": 0, "retry_wait": 0, "failed": 0}
 
 
 @pytest.mark.asyncio
@@ -319,7 +319,8 @@ async def test_reconciliation_worker_marks_provider_error(worker_db, monkeypatch
     async def inquiry(db, attempt_id, adapter):
         raise AppError("GATEWAY_INQUIRY_FAILED", "provider failed", 502)
     monkeypatch.setattr("app.services.reconciliation_worker_service.reconcile_attempt", inquiry)
-    assert (await worker_service.reconciliation_tick()) == {"claimed": 1, "completed": 0, "failed": 1}
+    assert (await worker_service.reconciliation_tick()) == {"claimed": 1, "completed": 0, "retry_wait": 1, "failed": 0}
     async with sessions() as db:
         saved = await db.get(ReconciliationCase, case_id)
-        assert saved.status == "FAILED" and saved.error_code == "GATEWAY_INQUIRY_FAILED"
+        assert saved.status == "RETRY_WAIT" and saved.error_code == "GATEWAY_INQUIRY_FAILED"
+        assert saved.next_retry_at is not None
