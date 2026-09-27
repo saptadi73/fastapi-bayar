@@ -36,6 +36,7 @@ class Client(Base):
     allowed_return_urls: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     allowed_callback_urls: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     callback_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    callback_secret_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     callback_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 

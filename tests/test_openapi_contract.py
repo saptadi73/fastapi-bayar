@@ -10,6 +10,7 @@ def test_active_admin_and_system_paths_are_published_in_openapi():
         "/api/v1/admin/clients/{client_id}/events",
         "/api/v1/admin/clients/{client_id}/portal-users",
         "/api/v1/admin/clients/{client_id}/revoke-checkouts",
+        "/api/v1/admin/clients/{client_id}/rotate-callback-secret",
         "/api/v1/admin/payments", "/api/v1/admin/payments/export",
         "/api/v1/admin/payments/summary", "/api/v1/admin/reconciliation",
         "/api/v1/admin/refunds",

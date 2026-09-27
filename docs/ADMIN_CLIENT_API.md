@@ -98,6 +98,12 @@ yang diterima. CLI register_client --rotate juga menaikkan version yang sama.
 - 409 CLIENT_VERSION_CONFLICT: muat ulang detail dan konfirmasi ulang, bukan auto-retry.
 - 422: payload/URL/scope invalid.
 
+`POST /{client_id}/rotate-callback-secret` membutuhkan `admin.clients.rotate_secret` dan
+body `{ "expected_version": 1, "reason": "..." }`. Endpoint mengembalikan callback
+secret baru sekali dan menaikkan `callback_secret_version`; OAuth JWT tidak dicabut.
+Portal Event wajib mengganti secret secara terkoordinasi sebelum callback berikutnya.
+Secret tidak tersedia lagi melalui detail/list dan tidak boleh disimpan di frontend.
+
 Belum ada idempotency key admin mutation. Response create hilang: cari client lewat
 list/detail; credential tidak dapat dibaca ulang lewat API. OAuth dapat dirotasi
 secara eksplisit, sedangkan recovery/rotasi callback secret masih memerlukan prosedur

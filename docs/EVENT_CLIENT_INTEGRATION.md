@@ -48,6 +48,13 @@ meminta token atau mengakses checkout. Allowlist URL harus cocok persis, termasu
 path/query. HTTPS wajib, kecuali HTTP loopback untuk development. Tidak ada wildcard.
 DNS/egress filtering masih perlu hardening; jangan daftarkan URL internal sensitif.
 
+Rotasi callback secret dilakukan operator Payment melalui
+`POST /api/v1/admin/clients/{client_id}/rotate-callback-secret` dengan
+`expected_version` dari `callback_secret_version` dan alasan audit. Secret baru hanya
+diberikan sekali; operator harus memperbaruinya pada backend Event sebelum callback
+berikutnya. Rotasi ini tidak mencabut OAuth JWT. Jangan menaruh secret pada browser,
+frontend build, Git, atau log.
+
 ## Token backend
 
 POST /api/v1/oauth/token dengan Authorization: Basic base64(client_id:client_secret)

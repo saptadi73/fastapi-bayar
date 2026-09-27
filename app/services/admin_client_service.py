@@ -11,13 +11,14 @@ from app.core.access import allow_url, hash_secret, validate_registered_url
 from app.core.errors import AppError
 from app.models.admin import AdminAudit
 from app.models.payment import CheckoutSession, Client, PaymentTransaction, Service
-from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret
+from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret, RotateCallbackSecret
 
 
 def client_view(client: Client):
     # Explicit allowlist: never serialize ORM __dict__ or credential columns.
     return {"id": str(client.id), "code": client.code, "name": client.name, "active": client.active,
             "version": client.token_version, "scopes": client.allowed_scopes.split(),
+            "callback_secret_version": client.callback_secret_version,
             "allowed_return_urls": client.allowed_return_urls,
             "allowed_callback_urls": client.allowed_callback_urls, "callback_url": client.callback_url}
 
@@ -96,6 +97,18 @@ async def rotate_secret(db: AsyncSession, actor_id, client_id, payload: RotateCl
     audit(db, actor_id, client, "CLIENT_SECRET_ROTATED", payload.reason)
     await db.commit()
     return {**client_view(client), "client_secret": secret}
+
+
+async def rotate_callback_secret(db: AsyncSession, actor_id, client_id, payload: RotateCallbackSecret):
+    client = await find_client(db, client_id, lock=True)
+    if client.callback_secret_version != payload.expected_version:
+        raise AppError("CLIENT_CALLBACK_VERSION_CONFLICT", "Callback secret telah berubah; muat ulang sebelum mencoba lagi", 409)
+    callback_secret = secrets.token_urlsafe(48)
+    client.callback_secret = callback_secret
+    client.callback_secret_version += 1
+    audit(db, actor_id, client, "CLIENT_CALLBACK_SECRET_ROTATED", payload.reason)
+    await db.commit()
+    return {**client_view(client), "callback_secret": callback_secret}
 
 
 async def revoke_checkout_sessions(db: AsyncSession, actor_id, client_id: uuid.UUID, reason: str) -> dict:

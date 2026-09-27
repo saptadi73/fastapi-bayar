@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.admin import enabled, require
 from app.core.database import get_db
 from app.models.payment import Client
-from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret, RevokeCheckouts
+from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret, RotateCallbackSecret, RevokeCheckouts
 from app.services.admin_client_service import (client_view, create_client, find_client, update_client,
-                                                rotate_secret, revoke_checkout_sessions)
+                                                rotate_secret, rotate_callback_secret, revoke_checkout_sessions)
 
 router = APIRouter(prefix="/admin/clients", tags=["Admin Clients"], dependencies=[Depends(enabled)])
 
@@ -46,3 +46,9 @@ async def rotate(client_id: UUID, payload: RotateClientSecret, identity=Depends(
 async def revoke_checkouts(client_id: UUID, payload: RevokeCheckouts,
                            identity=Depends(require("admin.clients.manage")), db: AsyncSession = Depends(get_db)):
     return {"data": await revoke_checkout_sessions(db, identity[0].id, client_id, payload.reason)}
+
+
+@router.post("/{client_id}/rotate-callback-secret")
+async def rotate_callback(client_id: UUID, payload: RotateCallbackSecret,
+                          identity=Depends(require("admin.clients.rotate_secret")), db: AsyncSession = Depends(get_db)):
+    return {"data": await rotate_callback_secret(db, identity[0].id, client_id, payload)}

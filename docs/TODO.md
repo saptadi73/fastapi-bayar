@@ -2,8 +2,8 @@
 
 > Review terakhir: 27 September 2026. Checklist ini dicocokkan dengan route,
 > service, gateway, migration, dokumentasi, dan test repository.
-> Status checklist: 34 selesai, 24 terbuka. `alembic check` bersih dan head
-> berada di `20260918_0022`. Validasi test terbaru: `100 passed, 14 skipped`.
+> Status checklist: 35 selesai, 23 terbuka. `alembic check` bersih dan head
+> berada di `20260918_0023`. Validasi test terbaru: `100 passed, 14 skipped`.
 
 ## Hasil audit 27 September 2026
 
@@ -68,7 +68,7 @@
 - [ ] MFA enrollment/recovery, password reset, forced password change, invitation, dan reauthentication.
 - [ ] Role/permission configurable, per-client admin assignment, role editor, dan audit before/after lengkap.
 - [x] Kebijakan revoke seluruh checkout session per client dengan audit operator.
-- [ ] Recovery/rotasi callback secret dengan audit request ID dan redaksi field sensitif.
+- [x] Recovery/rotasi callback secret dengan version check, audit, dan response secret sekali tampil.
 - [ ] Admin provisioning UI, UI transaksi, UI service/channel, dan UI role/MFA.
 - [ ] Egress/DNS hardening, browser end-to-end test, security review, secret scanning, backup/restore test.
 
