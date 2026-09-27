@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, JSON, String, UniqueConstraint, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -76,6 +76,11 @@ class PaymentTransaction(Base):
     amount: Mapped[int] = mapped_column(BigInteger)
     currency: Mapped[str] = mapped_column(String(3), default="IDR")
     status: Mapped[PaymentStatus] = mapped_column(SAEnum(PaymentStatus), default=PaymentStatus.CREATED)
+    winning_attempt_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("payment_attempts.id", use_alter=True, name="fk_payment_winning_attempt"),
+        nullable=True,
+        unique=True,
+    )
     customer_name: Mapped[str] = mapped_column(String(200))
     customer_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     customer_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -87,7 +92,15 @@ class PaymentTransaction(Base):
 
 class PaymentAttempt(Base):
     __tablename__ = "payment_attempts"
-    __table_args__ = (UniqueConstraint("payment_id", "attempt_no", name="uq_attempt_payment_number"),)
+    __table_args__ = (
+        UniqueConstraint("payment_id", "attempt_no", name="uq_attempt_payment_number"),
+        Index(
+            "uq_attempt_one_active_per_payment",
+            "payment_id",
+            unique=True,
+            postgresql_where=text("status IN ('INITIATED', 'PENDING', 'UNKNOWN')"),
+        ),
+    )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     payment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("payment_transactions.id"), index=True)
     attempt_no: Mapped[int] = mapped_column(Integer)

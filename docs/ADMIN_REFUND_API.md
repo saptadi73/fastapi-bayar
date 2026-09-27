@@ -2,7 +2,7 @@
 
 Fondasi refund maker-checker tersedia di `/api/v1/admin/refunds`. Semua endpoint memakai admin session cookie, origin check, dan CSRF token.
 
-`GET /admin/refunds` membutuhkan `admin.refunds.read`. `POST /admin/refunds/request` membutuhkan `admin.refunds.request` dan menerima `{ "payment_id": "UUID", "amount": 10000, "reason": "..." }`. Payment harus `PAID` atau `PARTIALLY_REFUNDED`; jumlah refund aktif tidak boleh melebihi nominal payment.
+`GET /admin/refunds` membutuhkan `admin.refunds.read`. `POST /admin/refunds/request` membutuhkan `admin.refunds.request` dan menerima `{ "payment_id": "UUID", "amount": 10000, "reason": "..." }`. Payment harus `PAID` atau `PARTIALLY_REFUNDED`; jumlah refund aktif kumulatif tidak boleh melebihi nominal payment. Refund `REJECTED` dan `FAILED` tidak dihitung sebagai nominal terpakai. Payment dikunci saat validasi dan pembuatan request untuk mencegah oversubscription concurrent.
 
 `POST /admin/refunds/{id}/approve` dan `/reject` membutuhkan `admin.refunds.approve` serta `{ "expected_version": 1 }`. Reject wajib menyertakan `reason`. Pengaju admin tidak boleh menyetujui refund sendiri. Setiap keputusan menulis `AdminAudit` dan menaikkan `version`.
 

@@ -43,6 +43,11 @@ mempengaruhi latensi. Callback, cleanup dan reconciliation memiliki loop indepen
 overlap tick job yang sama dalam satu proses. Batch dibatasi agar backlog tidak
 menjadi transaksi cleanup tak terbatas. Indeks expiry tersedia via migration 0009.
 
+Checkout attempt memiliki unique partial index `uq_attempt_one_active_per_payment`.
+Database hanya mengizinkan satu attempt berstatus `INITIATED`, `PENDING`, atau `UNKNOWN`
+untuk satu payment. Lock payment di service tetap dipakai untuk menentukan `attempt_no`
+dan menjaga urutan, sedangkan index menjadi pagar terakhir terhadap concurrent insert.
+
 ## Konsistensi dan retry
 
 PostgreSQL FOR UPDATE OF callback_deliveries SKIP LOCKED membagi pekerjaan antar

@@ -14,6 +14,8 @@ Portal event read-only tersedia pada `GET /admin/clients/{client_id}/events` dan
 Response hanya memuat identitas event non-PII. Listing payer tersedia pada
 `GET /admin/clients/{client_id}/portal-users` dan hanya SUPER_ADMIN dengan
 `admin.portal_users.read`; response mengandung PII dan setiap akses diaudit.
+Path aktif diproteksi oleh contract test OpenAPI; generated client dan contract
+pagination/concurrency masih menjadi pekerjaan release berikutnya.
 
 ## Aktivasi
 
@@ -75,6 +77,7 @@ HTTP hanya untuk development. Cookie adalah token opaque acak, bukan JWT; DB men
 hash token. Raw token tidak dikembalikan di JSON. Login ulang mengganti sesi browser
 yang sama, bukan mencabut semua sesi perangkat lain.
 
+Semua endpoint listing admin mengembalikan `meta.limit`, `meta.offset`, dan `meta.has_more`.
 Frontend memanggil me saat reload; simpan csrf_token dalam memory dan kirim pada
 mutasi. Jangan simpan password/session token di localStorage/sessionStorage. Cookie
 tidak dibaca JavaScript. Logout menghapus sesi di DB dan cookie; 401 berikutnya berarti

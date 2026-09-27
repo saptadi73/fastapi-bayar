@@ -13,6 +13,10 @@ Pembacaan transaksi (list/detail/history/attempts) sudah tersedia:
 [ADMIN_PAYMENT_API.md](ADMIN_PAYMENT_API.md). Customer PII tidak disertakan pada tahap ini.
 Antrean rekonsiliasi tersedia di [ADMIN_RECONCILIATION_API.md](ADMIN_RECONCILIATION_API.md);
 response 202 bukan bukti payment PAID.
+Katalog error frontend ada di [API_ERROR_CODES.md](API_ERROR_CODES.md). Event Portal,
+listing PortalUser PII, revoke checkout, export, summary, dan retry reconciliation
+memiliki kontrak aktif di dokumen API masing-masing; tabel rancangan di bawah hanya
+menjadi target UI untuk fitur yang memang belum aktif.
 
 ## 1. Pisahkan tiga jenis akses
 

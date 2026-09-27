@@ -108,6 +108,8 @@ async def process_doku_notification(db: AsyncSession, merchant_code: str, payloa
         else:
             await transition(db, payment, target, "DOKU_WEBHOOK", "Verified DOKU notification")
             attempt.status = target.value
+            if target == PaymentStatus.PAID:
+                payment.winning_attempt_id = attempt.id
             event.processing_status = "PROCESSED"
     except AppError:
         event.processing_status = "QUARANTINED"
@@ -144,8 +146,12 @@ async def apply_midtrans_event(db: AsyncSession, merchant_code: str, payload: di
         current = PaymentStatus(payment.status)
         protected = {PaymentStatus.PAID, PaymentStatus.REFUND_PENDING, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED}
         if current == target or (current in protected and target not in protected):
-            if target == PaymentStatus.PAID and attempt.status != "PAID":
-                raise AppError("DUPLICATE_PAYMENT_REVIEW", "Attempt lain melaporkan pembayaran sukses", 409)
+            if target == PaymentStatus.PAID:
+                same_winner = payment.winning_attempt_id == attempt.id
+                legacy_winner = payment.winning_attempt_id is None and current == PaymentStatus.PAID and attempt.status == "PAID"
+                if not same_winner and not legacy_winner:
+                    raise AppError("DUPLICATE_PAYMENT_REVIEW", "Attempt lain melaporkan pembayaran sukses", 409)
+                payment.winning_attempt_id = attempt.id
             if current == target == PaymentStatus.PENDING and attempt.status in {"INITIATED", "UNKNOWN"}:
                 attempt.status = "PENDING"
             event.processing_status = "IGNORED"
@@ -160,6 +166,8 @@ async def apply_midtrans_event(db: AsyncSession, merchant_code: str, payload: di
         await db.commit()
         raise
     attempt.status = target.value
+    if target == PaymentStatus.PAID:
+        payment.winning_attempt_id = attempt.id
     event.processing_status = "PROCESSED"
     client = await db.scalar(select(Client).where(Client.id == payment.client_id))
     if client:

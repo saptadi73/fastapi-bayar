@@ -1,4 +1,5 @@
 import httpx
+import json
 import pytest
 from unittest.mock import patch
 
@@ -24,4 +25,7 @@ async def test_midtrans_refund_uses_deterministic_key_and_accepts_partial_refund
 
     assert result["transaction_status"] == "partial_refund"
     assert seen["url"].endswith("/v2/ORDER-1/refund")
-    assert b'"refund_key": "RFD-1"' in seen["body"]
+    payload = json.loads(seen["body"])
+    assert payload["refund_key"] == "RFD-1"
+    assert payload["amount"] == 5000
+    assert payload["reason"] == "duplicate order"

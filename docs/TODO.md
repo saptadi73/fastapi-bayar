@@ -1,8 +1,26 @@
 # TODO dan Roadmap Implementasi
 
-> Review terakhir: 18 September 2026. Checklist ini dicocokkan dengan route,
+> Review terakhir: 27 September 2026. Checklist ini dicocokkan dengan route,
 > service, gateway, migration, dokumentasi, dan test repository.
-> `94 passed, 14 skipped`; provider live/UAT belum dijalankan.
+> Status checklist: 34 selesai, 24 terbuka. `alembic check` bersih dan head
+> berada di `20260918_0022`. Validasi test terbaru: `100 passed, 14 skipped`.
+
+## Hasil audit 27 September 2026
+
+- **Selesai dan terverifikasi:** struktur modular FastAPI, database/migration,
+  health/readiness, OAuth client credentials, checkout token, identity client/event/user,
+  payment ledger/idempotency, webhook/outbox, admin API, reconciliation retry/backoff,
+  refund maker-checker, winning attempt, late/duplicate-paid quarantine, DOKU Indomaret,
+  Midtrans boundary, error catalog, dan kontrak route/error OpenAPI.
+- **Selesai sebagian:** admin frontend sudah memiliki login, client, user, service,
+  payment, refund, reconciliation, audit, event, dan portal-user read-only. Role editor,
+  MFA, export UI, dan konfigurasi gateway/channel belum tersedia.
+- **Belum terverifikasi:** sandbox UAT/provider live, merchant binding, credential
+  encryption/rotation, secret manager, scheduler deployment, observability terpusat,
+  load test PostgreSQL, backup/restore, browser E2E, dan approval live launch.
+- **Catatan test:** assertion refund Midtrans sekarang mem-parse JSON request body,
+  sehingga tidak bergantung pada whitespace serialisasi JSON. Contract test OpenAPI
+  juga memverifikasi parameter `search` pada daftar dan export payment.
 
 ## Sudah selesai
 
@@ -36,8 +54,10 @@
 - [ ] DOKU refund API per product/channel yang mendukung API, webhook/inquiry refund, final ledger transition, dan settlement reconciliation.
 - [x] Scheduler reconciliation bounded retry/backoff dan retry-due index.
 - [ ] Scheduler inquiry multi-merchant dengan fairness, metric backlog, dan routing credential merchant.
-- [ ] Winning attempt eksplisit, late-paid/duplicate-paid reconciliation, dan cumulative refund validation.
-- [ ] Constraint database single active attempt dan aturan `attempt_no` bila diperlukan setelah load test.
+- [x] Winning attempt eksplisit dan late-paid/duplicate-paid webhook quarantine untuk review reconciliation.
+- [x] Cumulative refund validation dengan locking payment dan pengecualian refund REJECTED/FAILED.
+- [x] Constraint database single active attempt (`INITIATED`/`PENDING`/`UNKNOWN`) per payment.
+- [ ] Aturan `attempt_no` tambahan bila diperlukan setelah load test.
 - [ ] Sandbox UAT Midtrans/DOKU untuk channel yang diaktifkan, termasuk pembayaran tanpa email.
 - [ ] Production credential rotation, secret-manager deployment, merchant binding, dan live UAT terkontrol.
 
@@ -58,6 +78,7 @@
 - [x] Admin read-only listing PortalUser dengan permission PII terpisah, tenant filter, dan audit akses.
 - [ ] PortalUser CRUD, perubahan master-data, dan audit before/after.
 - [x] Filter transaksi per event dengan `client_id` wajib, permission ledger, dan response tanpa PII.
+- [x] Server-side payment search dan `total_count` agar pagination tidak terbatas pada halaman aktif.
 - [ ] Update payload portal existing untuk kontrak mandatory event/email.
 - [ ] Backfill data historis hanya setelah mapping event/email asli disetujui.
 - [ ] Organizer/service admin API, merchant account, routing rules, channel eligibility, dan feature flags.
@@ -71,7 +92,10 @@
 
 ### Release gate
 
-- [ ] Finalisasi OpenAPI admin, error-code catalog, pagination, concurrency, dan contract tests.
+- [x] Error-code catalog frontend dan kontrak endpoint aktif diperbarui.
+- [x] Contract test path aktif OpenAPI dan error envelope.
+- [x] OpenAPI payment response schema, pagination consistency, dan concurrency contract tests.
+- [ ] Finalisasi seluruh OpenAPI admin dan generated client.
 - [ ] Unit test tambahan untuk seluruh state transition, money, idempotency, dan provider channel.
 - [x] Migration gate production: `AUTO_CREATE_TABLES=false`, migration head diverifikasi sebelum startup.
 - [ ] Checklist deployment, secret rotation, backup/restore, sandbox UAT, dan approval live launch.

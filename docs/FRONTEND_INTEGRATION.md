@@ -75,6 +75,7 @@ Renewal melalui backend Event: POST /api/v1/client/payments/{payment_id}/checkou
 
 Error API: error.code, error.message, error.request_id, error.details.
 Simpan request_id untuk tracing, bukan credential.
+Katalog error lengkap ada di [API_ERROR_CODES.md](API_ERROR_CODES.md).
 
 - 401: token hilang/invalid/expired atau client inactive; minta link baru lewat backend Event.
 - 404: payment/attempt bukan milik token atau tidak ditemukan.
@@ -92,3 +93,18 @@ Integrasi browser/provider sandbox tetap perlu pengujian end-to-end.
 Payment backend: PUBLIC_BASE_URL, API_PREFIX, CHECKOUT_TTL_SECONDS.
 Event backend: client_id, client_secret, callback_secret dan base URL Payment.
 Semua credential tetap di server; gunakan HTTPS production.
+
+## Admin API terbaru
+
+Frontend admin dapat memakai endpoint aktif berikut sesuai permission:
+
+- Event: `GET /admin/clients/{client_id}/events` dan detail event.
+- PortalUser PII: `GET /admin/clients/{client_id}/portal-users`, hanya
+  `admin.portal_users.read` dan setiap akses diaudit.
+- Revoke checkout: `POST /admin/clients/{client_id}/revoke-checkouts` dengan
+  `{ "reason": "..." }`, membutuhkan `admin.clients.manage` dan CSRF.
+- Export/summary payment: lihat [ADMIN_PAYMENT_API.md](ADMIN_PAYMENT_API.md).
+- Search payment dilakukan server-side melalui parameter `search`; gunakan `total_count`
+  dan `has_more` dari meta untuk pagination.
+- Retry reconciliation: `RETRY_WAIT` berarti worker akan mencoba lagi sesuai
+  exponential backoff; `FAILED` berarti batas retry tercapai.

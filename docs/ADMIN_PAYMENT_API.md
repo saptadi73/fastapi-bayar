@@ -10,6 +10,8 @@ Penugasan admin per-client masih TODO. Production guard admin tetap berlaku.
 ## Endpoint
 
 Prefix default /api/v1/admin/payments (koleksi tanpa trailing slash).
+OpenAPI mendokumentasikan response schema payment list/detail/history/attempts/export;
+frontend dapat memakai schema generated client tanpa menebak field response.
 
 | Metode | Path relatif | Data |
 | --- | --- | --- |
@@ -33,6 +35,7 @@ GET ini tidak membutuhkan CSRF; otorisasi/session tetap diperiksa backend.
 | event_id | ID event eksternal; wajib disertai client_id |
 | status | Enum status payment, misalnya CREATED/PENDING/PAID |
 | reference_id | Reference order client, exact match |
+| search | Pencarian case-insensitive pada payment_no, reference_id, event_id, event_name, client_name |
 | created_from | Timestamp timezone-aware, inklusif |
 | created_to | Timestamp timezone-aware, eksklusif |
 | limit | 1-100, default 50 |
@@ -47,7 +50,10 @@ Reference yang sama dapat ada di beberapa client, jadi tambahkan client_id bila 
 
 Daftar diurutkan created_at DESC, id DESC. Tidak join attempts saat pagination sehingga
 satu payment tetap satu baris meskipun punya beberapa attempt.
-Envelope {data:[...],meta:{limit,offset,has_more}}. Tidak ada total_count/agregasi nominal.
+Envelope `{data:[...],meta:{limit,offset,has_more,total_count}}`. `total_count` adalah
+jumlah payment setelah seluruh filter diterapkan, bukan jumlah attempt dan bukan agregasi
+nominal. Search dilakukan backend sebelum pagination; frontend tidak perlu menyaring hanya
+baris halaman aktif.
 Offset pagination bukan snapshot: insert/status berubah di antara request bisa menggeser
 halaman; refresh dari offset=0 saat filter berubah. Export cursor/snapshot tersedia pada
 endpoint `/export`.
@@ -71,6 +77,11 @@ Karena izin baca customer belum dipisah, frontend tidak menambahkan data custome
 dari endpoint client API. Modul PII terotorisasi terpisah masih TODO.
 Nomor reference/nama event tetap bisa berisi informasi bisnis; jangan kirim ke analytics.
 
+Payment menyimpan `winning_attempt_id` secara internal saat status PAID pertama yang
+terverifikasi. Field ini tidak diekspos pada response admin. Status PAID dari attempt lain
+atau status PAID yang datang setelah payment terminal tidak mengubah ledger otomatis;
+event dikarantina dengan kode review agar operator dapat melakukan reconciliation.
+
 ## Frontend dan batas operasional
 
 Bangun tabel dengan filter client/event/service/status/rentang tanggal, tombol next
@@ -85,7 +96,7 @@ Export, PII permission, dan dashboard agregasi tersedia; settlement dan multi-me
 routing masih TODO. Refund maker-checker internal tersedia di `ADMIN_REFUND_API.md`.
 Tidak ada transaksi gateway nyata yang dibuat oleh tes admin ledger.
 
-`GET /export` memakai filter daftar yang sama, limit 1-5000, dan mengembalikan
+`GET /export` memakai filter daftar yang sama termasuk `search`, limit 1-5000, dan mengembalikan
 snapshot JSON bounded dengan `snapshot_at`, `has_more`, serta `next_cursor`.
 Request berikutnya mengirim `cursor` dan `snapshot_at` dari response pertama;
 server memakai urutan `(created_at DESC, id DESC)` sehingga insert baru tidak

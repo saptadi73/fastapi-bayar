@@ -18,9 +18,10 @@ router = APIRouter(prefix="/admin/clients/{client_id}/services", tags=["Admin Se
 async def listing(client_id: UUID, identity=Depends(require("admin.services.read")), db: AsyncSession = Depends(get_db),
                   limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
     await find_client(db, client_id)
-    rows = (await db.scalars(select(Service).where(Service.client_id == client_id)
-                            .order_by(Service.code).limit(limit).offset(offset))).all()
-    return {"data": [service_view(row) for row in rows], "meta": {"limit": limit, "offset": offset}}
+    rows = list((await db.scalars(select(Service).where(Service.client_id == client_id)
+                            .order_by(Service.code).limit(limit + 1).offset(offset))).all())
+    return {"data": [service_view(row) for row in rows[:limit]],
+            "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit}}
 
 
 @router.get("/{service_id}")

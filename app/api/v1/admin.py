@@ -91,8 +91,9 @@ async def sign_out(request: Request, response: Response, identity=Depends(princi
 @router.get("/users")
 async def users(identity=Depends(require("admin.users.read")), db: AsyncSession = Depends(get_db),
                 limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
-    rows = (await db.scalars(select(AdminUser).order_by(AdminUser.email).limit(limit).offset(offset))).all()
-    return {"data": [profile(row) for row in rows], "meta": {"limit": limit, "offset": offset}}
+    rows = list((await db.scalars(select(AdminUser).order_by(AdminUser.email).limit(limit + 1).offset(offset))).all())
+    return {"data": [profile(row) for row in rows[:limit]],
+            "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit}}
 
 
 @router.get("/roles")
@@ -103,9 +104,9 @@ async def roles(identity=Depends(require("admin.roles.read"))):
 @router.get("/audit")
 async def audit(identity=Depends(require("admin.audit.read")), db: AsyncSession = Depends(get_db),
                 limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
-    rows = (await db.scalars(select(AdminAudit).order_by(AdminAudit.occurred_at.desc(), AdminAudit.id)
-                            .limit(limit).offset(offset))).all()
+    rows = list((await db.scalars(select(AdminAudit).order_by(AdminAudit.occurred_at.desc(), AdminAudit.id)
+                            .limit(limit + 1).offset(offset))).all())
     return {"data": [{"id": str(row.id), "actor_id": str(row.actor_id) if row.actor_id else None,
                       "action": row.action, "resource_id": row.resource_id, "reason": row.reason,
-                      "occurred_at": row.occurred_at.isoformat()} for row in rows],
-            "meta": {"limit": limit, "offset": offset}}
+                      "occurred_at": row.occurred_at.isoformat()} for row in rows[:limit]],
+            "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit}}

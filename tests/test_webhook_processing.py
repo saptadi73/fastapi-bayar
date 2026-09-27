@@ -53,8 +53,8 @@ async def test_invalid_signature_never_enters_deduplication():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("provider_status", ["settlement", "pending"])
 async def test_paid_payment_does_not_emit_second_callback(provider_status):
-    payment = SimpleNamespace(id=uuid.uuid4(), amount=100000, currency="IDR", status=PaymentStatus.PAID)
-    attempt = SimpleNamespace(payment_id=payment.id, status="PAID")
+    payment = SimpleNamespace(id=uuid.uuid4(), amount=100000, currency="IDR", status=PaymentStatus.PAID, winning_attempt_id=None)
+    attempt = SimpleNamespace(id=uuid.uuid4(), payment_id=payment.id, status="PAID")
     events = []
     db = AsyncMock()
     db.add = events.append
@@ -63,6 +63,8 @@ async def test_paid_payment_does_not_emit_second_callback(provider_status):
         result = await process_midtrans_notification(db, "test", notification(transaction_status=provider_status), b"signed-test")
     assert result["status"] == "IGNORED"
     assert payment.status == PaymentStatus.PAID
+    if provider_status == "settlement":
+        assert payment.winning_attempt_id == attempt.id
     assert events[0].processing_status == "IGNORED"
     assert "signature_key" not in events[0].payload
     callback.assert_not_awaited()

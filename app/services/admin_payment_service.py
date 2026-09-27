@@ -3,7 +3,7 @@ import base64
 import json
 from datetime import datetime, timezone
 from uuid import UUID
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from app.core.errors import AppError
 from app.models.admin import AdminAudit
 from app.models.payment import PaymentTransaction, PaymentAttempt, PaymentStatusHistory
@@ -18,9 +18,10 @@ def payment_view(p):
             "expires_at": p.expires_at.isoformat() if p.expires_at else None}
 
 
-def page(rows, serializer, limit, offset):
+def page(rows, serializer, limit, offset, total_count=None):
     return {"data": [serializer(row) for row in rows[:limit]],
-            "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit}}
+            "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit,
+                     **({"total_count": total_count} if total_count is not None else {})}}
 
 
 async def get_payment(db, payment_id):
@@ -30,25 +31,35 @@ async def get_payment(db, payment_id):
     return payment
 
 
-async def list_payments(db, *, client_id, service_id, event_id, status, reference_id,
+async def list_payments(db, *, client_id, service_id, event_id, status, reference_id, search,
                         created_from, created_to, limit, offset):
     if event_id is not None and client_id is None:
         raise AppError("CLIENT_FILTER_REQUIRED", "Filter event_id wajib disertai client_id", 422)
     if created_from and created_to and created_from >= created_to:
         raise AppError("INVALID_DATE_RANGE", "created_from harus sebelum created_to", 422)
     query = select(PaymentTransaction)
+    filters = []
     for column, value in ((PaymentTransaction.client_id, client_id), (PaymentTransaction.service_id, service_id),
                           (PaymentTransaction.event_id, event_id), (PaymentTransaction.status, status),
                           (PaymentTransaction.external_reference, reference_id)):
         if value is not None:
-            query = query.where(column == value)
+            filters.append(column == value)
+    if search:
+        pattern = f"%{search.strip()}%"
+        filters.append(or_(PaymentTransaction.payment_no.ilike(pattern),
+                           PaymentTransaction.external_reference.ilike(pattern),
+                           PaymentTransaction.event_id.ilike(pattern),
+                           PaymentTransaction.event_name.ilike(pattern),
+                           PaymentTransaction.client_name.ilike(pattern)))
     if created_from:
-        query = query.where(PaymentTransaction.created_at >= created_from)
+        filters.append(PaymentTransaction.created_at >= created_from)
     if created_to:
-        query = query.where(PaymentTransaction.created_at < created_to)
+        filters.append(PaymentTransaction.created_at < created_to)
+    query = query.where(*filters)
+    total_count = await db.scalar(select(func.count(PaymentTransaction.id)).where(*filters))
     rows = list((await db.scalars(query.order_by(PaymentTransaction.created_at.desc(), PaymentTransaction.id.desc())
                                  .limit(limit + 1).offset(offset))).all())
-    return page(rows, payment_view, limit, offset)
+    return page(rows, payment_view, limit, offset, int(total_count or 0))
 
 
 async def summary(db, *, actor_id, client_id, status, created_from, created_to):
@@ -85,7 +96,7 @@ async def summary(db, *, actor_id, client_id, status, created_from, created_to):
                      "currency": "IDR", "source": "payment_transactions"}}
 
 
-async def export_payments(db, *, client_id, service_id, event_id, status, reference_id,
+async def export_payments(db, *, client_id, service_id, event_id, status, reference_id, search,
                           created_from, created_to, limit, actor_id, cursor=None, snapshot_at=None):
     if event_id is not None and client_id is None:
         raise AppError("CLIENT_FILTER_REQUIRED", "Filter event_id wajib disertai client_id", 422)
@@ -97,6 +108,13 @@ async def export_payments(db, *, client_id, service_id, event_id, status, refere
                           (PaymentTransaction.external_reference, reference_id)):
         if value is not None:
             query = query.where(column == value)
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.where(or_(PaymentTransaction.payment_no.ilike(pattern),
+                                PaymentTransaction.external_reference.ilike(pattern),
+                                PaymentTransaction.event_id.ilike(pattern),
+                                PaymentTransaction.event_name.ilike(pattern),
+                                PaymentTransaction.client_name.ilike(pattern)))
     if created_from:
         query = query.where(PaymentTransaction.created_at >= created_from)
     if created_to:

@@ -17,8 +17,9 @@ router = APIRouter(prefix="/admin/clients", tags=["Admin Clients"], dependencies
 @router.get("")
 async def listing(identity=Depends(require("admin.clients.read")), db: AsyncSession = Depends(get_db),
                   limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)):
-    rows = (await db.scalars(select(Client).order_by(Client.code).limit(limit).offset(offset))).all()
-    return {"data": [client_view(row) for row in rows], "meta": {"limit": limit, "offset": offset}}
+    rows = list((await db.scalars(select(Client).order_by(Client.code).limit(limit + 1).offset(offset))).all())
+    return {"data": [client_view(row) for row in rows[:limit]],
+            "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit}}
 
 
 @router.get("/{client_id}")
