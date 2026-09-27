@@ -36,3 +36,25 @@ class UpdateAdminUser(UserFields):
 
 class RevokeUserSessions(UserChange):
     expected_version: int = Field(strict=True, ge=1)
+
+
+class PasswordChange(UserChange):
+    current_password: SecretStr = Field(min_length=1, max_length=128)
+    new_password: SecretStr = Field(min_length=15, max_length=128)
+
+
+class InviteAdmin(UserChange):
+    email: EmailStr = Field(max_length=320)
+    display_name: str = Field(min_length=1, max_length=200)
+    role: RoleCode
+    expires_hours: int = Field(default=24, ge=1, le=168)
+
+
+class PasswordResetConfirm(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=20, max_length=200)
+    new_password: SecretStr = Field(min_length=15, max_length=128)
+
+
+class InvitationAccept(PasswordResetConfirm):
+    pass

@@ -49,7 +49,9 @@ callback_url harus cocok persis dengan salah satu allowed_callback_urls.
 
 201 data memuat id, code, name, active, version=1, scopes, URL, service_code,
 client_secret dan callback_secret. Service awal dibuat atomik bersama client dan audit.
-Secret OAuth disimpan hash, callback secret masih plaintext di DB (enkripsi TODO).
+Secret OAuth disimpan hash. Callback secret baru disimpan pada kolom ciphertext bila
+`CREDENTIAL_ENCRYPTION_KEY` tersedia; baris legacy plaintext tetap kompatibel sementara
+menunggu backfill terkontrol. Production wajib mengisi key tersebut.
 Tidak ada email/user pembayar yang dibuat saat registrasi client.
 
 Frontend menampilkan credential sekali dari response create dalam modal tanpa logging/

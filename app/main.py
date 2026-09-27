@@ -22,11 +22,13 @@ from app.api.v1.admin_payments import router as admin_payments_router
 from app.api.v1.admin_reconciliation import router as admin_reconciliation_router
 from app.api.v1.admin_refunds import router as admin_refunds_router
 from app.api.v1.admin_portal import router as admin_portal_router, users_router as admin_portal_users_router
+from app.api.v1.admin_routing import router as admin_routing_router
 from app.core.config import get_settings
 from app.core.database import Base, check_database, engine, verify_migration_head
 from app.core.errors import AppError
 from app.core.logging import configure_logging
 from app.models import payment  # noqa: F401
+from app.models import routing  # noqa: F401
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -129,3 +131,4 @@ app.include_router(admin_reconciliation_router, prefix=get_settings().api_prefix
 app.include_router(admin_refunds_router, prefix=get_settings().api_prefix)
 app.include_router(admin_portal_router, prefix=get_settings().api_prefix)
 app.include_router(admin_portal_users_router, prefix=get_settings().api_prefix)
+app.include_router(admin_routing_router, prefix=get_settings().api_prefix)

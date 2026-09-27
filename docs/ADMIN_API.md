@@ -1,10 +1,11 @@
 # Admin API - foundation development
 
-Status aktif setelah migration 0011: login, me, logout, read-only user/role/audit,
+Status aktif setelah migration 0029: login, me, logout, rate limit account-aware,
+MFA TOTP/reauthentication, read-only user/role/audit,
 bootstrap Super Admin pertama. Client create/read/update/rotate kini tersedia lewat
 [ADMIN_CLIENT_API.md](ADMIN_CLIENT_API.md). Create/update/revoke user tersedia di
 [ADMIN_USER_API.md](ADMIN_USER_API.md). Belum ada UI admin,
-MFA, reset password atau role editor. Target UI lengkap tetap di ADMIN_FRONTEND_SPEC.md.
+Reset password, invitation, forced password change, dan role editor masih terbuka.
 
 Service per-client: [ADMIN_SERVICE_API.md](ADMIN_SERVICE_API.md), list/detail/create/update.
 SUPER_ADMIN/INTEGRATION_ADMIN mendapat admin.services.read/manage; AUDITOR hanya read.

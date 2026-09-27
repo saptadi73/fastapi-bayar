@@ -10,12 +10,14 @@ from app.core.errors import AppError
 from app.gateways.registry import client_for_channel
 from app.models.payment import PaymentAttempt, PaymentStatus, PaymentTransaction
 from app.services.payment_service import transition
+from app.services.routing_service import ensure_channel_eligible
 
 ACTIVE_ATTEMPT_STATUSES = ("INITIATED", "PENDING", "UNKNOWN")
 
 
 async def create_attempt(db: AsyncSession, payment: PaymentTransaction, channel_code: str) -> PaymentAttempt:
     channel_code = channel_code.upper()
+    await ensure_channel_eligible(db, payment, channel_code)
     adapter = client_for_channel(channel_code, get_settings())
     payment = await db.scalar(select(PaymentTransaction).where(
         PaymentTransaction.id == payment.id

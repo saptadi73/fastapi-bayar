@@ -42,7 +42,9 @@ mengganti OAuth secret, scopes dan allowlist, menaikkan token_version, sehingga 
 ditolak. Simpan client_secret dan callback_secret dari output secara aman di backend
 Event, bukan Git/log/frontend. client_id OAuth adalah code EVENT-CLIENT, bukan UUID.
 
-Secret OAuth di-hash scrypt; callback secret masih plaintext (enkripsi TODO).
+Secret OAuth di-hash scrypt; callback secret baru dienkripsi at-rest dengan
+`CREDENTIAL_ENCRYPTION_KEY`. Baris legacy perlu backfill terkontrol sebelum klaim seluruh
+credential sudah terenkripsi.
 Registrasi hanya lewat CLI operator, belum ada admin UI. Client inactive tidak dapat
 meminta token atau mengakses checkout. Allowlist URL harus cocok persis, termasuk
 path/query. HTTPS wajib, kecuali HTTP loopback untuk development. Tidak ada wildcard.

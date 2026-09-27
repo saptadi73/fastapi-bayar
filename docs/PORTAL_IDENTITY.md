@@ -28,7 +28,9 @@ service_code tetap wajib untuk kategori/routing layanan yang didaftarkan operato
 bukan pengganti event_id. Satu service dapat dipakai banyak event.
 Event/pembayar otomatis dibuat saat create payment pertama berhasil, dalam transaksi
 yang sama. Client terautentikasi berwenang mengirim identitas event di lingkupnya sendiri;
-belum ada endpoint CRUD event/pembayar atau registrasi event terpisah.
+master event tetap read-only di admin, sedangkan PortalUser dapat dikelola SUPER_ADMIN
+melalui endpoint admin. Email PortalUser immutable; perubahan nama memakai
+`expected_version`, dan penghapusan ditolak bila sudah direferensikan transaksi.
 
 ## Email dan data historis
 
@@ -80,6 +82,11 @@ Replay record idempotency lama dapat memiliki response tanpa field identitas bar
 Request format lama tanpa event/email sekarang ditolak schema sebelum replay; jangan
 membuat reference baru untuk membayar ulang order lama. Gunakan GET payment atau
 renew checkout milik order existing melalui backend; bila perlu eskalasi operator.
+
+Kontrak ini juga berlaku untuk payload Portal Event yang sudah terdaftar: setiap
+request create payment wajib mengirim ketiga field tersebut. Tidak ada fallback
+tebakan dari `service_code`, dan tidak ada admin rename event yang menulis ulang
+snapshot order historis.
 
 Gateway payload/protokol Midtrans/DOKU tidak diubah pada iterasi ini. Kewajiban email
 adalah aturan identitas Payment Portal, bukan klaim kewajiban universal gateway.

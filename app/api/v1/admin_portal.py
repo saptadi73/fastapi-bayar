@@ -10,6 +10,8 @@ from app.core.errors import AppError
 from app.models.payment import Client
 from app.models.admin import AdminAudit
 from app.models.portal_identity import PortalEvent, PortalUser
+from app.schemas.admin_portal import CreatePortalUser, DeletePortalUser, UpdatePortalUser
+from app.services.admin_portal_service import create_user, delete_user, update_user
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/admin/clients/{client_id}/events", tags=["Admin Portal"],
@@ -53,7 +55,7 @@ async def detail(client_id: UUID, event_id: str, identity=Depends(require("admin
 
 def user_view(user: PortalUser) -> dict:
     return {"id": str(user.id), "client_id": str(user.client_id),
-            "email": user.email, "name": user.name}
+            "email": user.email, "name": user.name, "version": user.version}
 
 
 @users_router.get("")
@@ -71,3 +73,24 @@ async def user_listing(client_id: UUID, identity=Depends(require("admin.portal_u
     return {"data": [user_view(row) for row in rows[:limit]],
             "meta": {"limit": limit, "offset": offset, "has_more": len(rows) > limit,
                      "pii": True}}
+
+
+@users_router.post("", status_code=201)
+async def create_portal_user(client_id: UUID, payload: CreatePortalUser,
+                             identity=Depends(require("admin.portal_users.manage")),
+                             db: AsyncSession = Depends(get_db)):
+    return {"data": await create_user(db, identity[0].id, client_id, payload)}
+
+
+@users_router.patch("/{user_id}")
+async def update_portal_user(client_id: UUID, user_id: UUID, payload: UpdatePortalUser,
+                             identity=Depends(require("admin.portal_users.manage")),
+                             db: AsyncSession = Depends(get_db)):
+    return {"data": await update_user(db, identity[0].id, client_id, user_id, payload)}
+
+
+@users_router.delete("/{user_id}")
+async def delete_portal_user(client_id: UUID, user_id: UUID, payload: DeletePortalUser,
+                             identity=Depends(require("admin.portal_users.manage")),
+                             db: AsyncSession = Depends(get_db)):
+    return {"data": await delete_user(db, identity[0].id, client_id, user_id, payload)}

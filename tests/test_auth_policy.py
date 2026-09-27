@@ -35,4 +35,5 @@ def test_production_rejects_unsafe_runtime(changes):
 def test_production_valid_configuration():
     Settings(_env_file=None, environment="production", auth_enabled=True, auto_create_tables=False,
              APP_DEBUG=False, db_echo=False, public_base_url="https://example.com",
-             client_api_secret="test-configured-secret", jwt_secret="test-only-" * 8).validate_production()
+             client_api_secret="test-configured-secret", jwt_secret="test-only-" * 8,
+             credential_encryption_key="YlZ3cHhLaG9tV2x5Qm9zRjR4V2V4cGxvclV6d3A1Q3N6Q2VhYw==").validate_production()

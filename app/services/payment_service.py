@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.access import allow_url
 from app.core.errors import AppError
 from app.models.payment import Client, IdempotencyRecord, PaymentAttempt, PaymentStatus, PaymentStatusHistory, PaymentTransaction, Refund, Service
+from app.models.routing import Organizer
 from app.schemas.payment import InitiatePaymentRequest
 from app.services.portal_identity_service import resolve_portal_identity
 
@@ -40,6 +41,10 @@ async def initiate(db: AsyncSession, client: Client, payload: InitiatePaymentReq
     service = await db.scalar(select(Service).where(Service.client_id == client.id, Service.code == payload.service_code, Service.active.is_(True)))
     if not service:
         raise AppError("SERVICE_NOT_FOUND", "Service tidak ditemukan atau tidak aktif", 404)
+    if payload.organizer_code:
+        organizer = await db.scalar(select(Organizer).where(Organizer.client_id == client.id, Organizer.code == payload.organizer_code, Organizer.active.is_(True)))
+        if not organizer or service.organizer_id != organizer.id:
+            raise AppError("ORGANIZER_NOT_FOUND", "Organizer tidak ditemukan atau tidak sesuai service", 404)
     duplicate = await db.scalar(select(PaymentTransaction).where(PaymentTransaction.client_id == client.id, PaymentTransaction.external_reference == payload.reference_id))
     if duplicate:
         raise AppError("DUPLICATE_REFERENCE", "Reference telah memiliki payment", 409, {"payment_id": str(duplicate.id)})

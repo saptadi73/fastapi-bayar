@@ -8,6 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy import select
 from app.core.access import SCOPES, hash_secret, validate_registered_url
+from app.core.config import get_settings
+from app.core.secret_store import encrypt_secret
 from app.core.database import SessionLocal, engine
 from app.models.payment import Client, Service
 
@@ -22,9 +24,16 @@ async def main(args):
         if client and not args.rotate:
             raise ValueError("Client exists. Use --rotate to explicitly replace credentials/allowlists and revoke JWTs.")
         secret = secrets.token_urlsafe(48)
+        encryption_key = get_settings().credential_encryption_key
+        api_secret = secrets.token_urlsafe(48)
+        callback_secret = secrets.token_urlsafe(48)
         if not client:
-            client = Client(code=args.code, name=args.name, api_secret=secrets.token_urlsafe(48),
-                            callback_secret=secrets.token_urlsafe(48), token_version=1)
+            client = Client(code=args.code, name=args.name,
+                            api_secret=api_secret if not encryption_key else "",
+                            api_secret_ciphertext=encrypt_secret(api_secret, encryption_key) if encryption_key else None,
+                            callback_secret=callback_secret if not encryption_key else None,
+                            callback_secret_ciphertext=encrypt_secret(callback_secret, encryption_key) if encryption_key else None,
+                            token_version=1)
             db.add(client)
         else:
             client.token_version += 1
@@ -40,7 +49,7 @@ async def main(args):
         await db.commit()
         print("client_id:", client.code)
         print("client_secret (save securely):", secret)
-        print("callback_secret (save in Event backend):", client.callback_secret)
+        print("callback_secret (save in Event backend):", callback_secret)
         print("service_code:", args.service)
     await engine.dispose()
 

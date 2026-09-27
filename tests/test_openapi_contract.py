@@ -9,6 +9,16 @@ def test_active_admin_and_system_paths_are_published_in_openapi():
         "/api/v1/admin/clients",
         "/api/v1/admin/clients/{client_id}/events",
         "/api/v1/admin/clients/{client_id}/portal-users",
+        "/api/v1/admin/clients/{client_id}/portal-users/{user_id}",
+        "/api/v1/admin/clients/{client_id}/merchant-accounts",
+        "/api/v1/admin/clients/{client_id}/merchant-accounts/{account_id}",
+        "/api/v1/admin/clients/{client_id}/organizers",
+        "/api/v1/admin/clients/{client_id}/organizers/{organizer_id}",
+        "/api/v1/admin/clients/{client_id}/payment-channels",
+        "/api/v1/admin/clients/{client_id}/payment-channels/{channel_id}",
+        "/api/v1/admin/clients/{client_id}/routing-rules",
+        "/api/v1/admin/clients/{client_id}/routing-rules/{rule_id}",
+        "/api/v1/admin/clients/{client_id}/feature-flags",
         "/api/v1/admin/clients/{client_id}/revoke-checkouts",
         "/api/v1/admin/clients/{client_id}/rotate-callback-secret",
         "/api/v1/admin/payments", "/api/v1/admin/payments/export",
@@ -16,6 +26,9 @@ def test_active_admin_and_system_paths_are_published_in_openapi():
         "/api/v1/admin/refunds",
     }
     assert expected <= paths.keys()
+
+    portal_user = paths["/api/v1/admin/clients/{client_id}/portal-users/{user_id}"]
+    assert {"patch", "delete"} <= portal_user.keys()
 
 
 def test_error_envelope_documents_request_id():

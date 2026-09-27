@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     db_echo: bool = False
     auto_create_tables: bool = False
     migration_gate_enabled: bool = True
-    migration_head: str = "20260918_0020"
+    migration_head: str = "20260918_0031"
     auth_enabled: bool = True
     admin_enabled: bool = False
     admin_session_ttl_seconds: int = Field(default=28800, ge=300, le=86400)
@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     nonce_ttl_seconds: int = 600
     idempotency_ttl_hours: int = 48
     client_api_secret: str = "change-me-local-only"
+    credential_encryption_key: str = ""
+    credential_encryption_key_previous: str = ""
     doku_enabled: bool = False
     doku_environment: str = "SANDBOX"
     doku_base_url: str | None = None
@@ -105,6 +107,8 @@ class Settings(BaseSettings):
                 raise ValueError("PUBLIC_BASE_URL production wajib HTTPS")
         if self.environment.lower() == "production" and self.client_api_secret == "change-me-local-only":
             raise ValueError("CLIENT_API_SECRET wajib diganti pada production")
+        if self.environment.lower() == "production" and not self.credential_encryption_key:
+            raise ValueError("CREDENTIAL_ENCRYPTION_KEY wajib dikonfigurasi pada production")
 
 
 @lru_cache

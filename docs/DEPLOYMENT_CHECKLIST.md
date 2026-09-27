@@ -7,6 +7,7 @@ Gunakan checklist ini sebelum Payment Portal menerima traffic nyata.
 - Salin `.env.example` ke secret storage deployment; jangan commit `.env`.
 - Set `ENVIRONMENT=production`, `APP_DEBUG=false`, `DB_ECHO=false`, dan `AUTO_CREATE_TABLES=false`.
 - Set `MIGRATION_GATE_ENABLED=true` dan pastikan `MIGRATION_HEAD` sesuai release.
+- Untuk release ini, `MIGRATION_HEAD` harus `20260918_0027` sesuai output `alembic heads`.
 - Gunakan `PUBLIC_BASE_URL` HTTPS.
 - Isi `JWT_SECRET` acak minimal 48 karakter dan `CLIENT_API_SECRET` baru.
 - Simpan DOKU private/public key di secret volume dengan permission terbatas.

@@ -2,8 +2,8 @@
 
 > Review terakhir: 27 September 2026. Checklist ini dicocokkan dengan route,
 > service, gateway, migration, dokumentasi, dan test repository.
-> Status checklist: 35 selesai, 23 terbuka. `alembic check` bersih dan head
-> berada di `20260918_0023`. Validasi test terbaru: `100 passed, 14 skipped`.
+> Status checklist: 45 selesai, 17 terbuka. `alembic check` bersih dan head
+> berada di `20260918_0031`. Validasi test terbaru: `103 passed, 14 skipped`.
 
 ## Hasil audit 27 September 2026
 
@@ -63,25 +63,35 @@
 
 ### Security dan admin
 
-- [ ] Credential merchant terenkripsi at rest, tabel credential multi-key, dan rotasi dua key aktif.
-- [ ] Rate limiting terdistribusi dan audit autentikasi yang account-aware.
-- [ ] MFA enrollment/recovery, password reset, forced password change, invitation, dan reauthentication.
-- [ ] Role/permission configurable, per-client admin assignment, role editor, dan audit before/after lengkap.
+- [ ] Credential merchant terenkripsi at rest untuk seluruh legacy data dan tabel credential multi-key.
+- [x] Dual-key runtime decryption untuk rotasi `CREDENTIAL_ENCRYPTION_KEY` tanpa downtime.
+- [x] Fondasi encryption callback/api secret baru dengan Fernet key wajib di production.
+- [x] Rate limiting terdistribusi dan audit autentikasi yang account-aware.
+- [x] MFA TOTP enrollment/recovery, reauthentication, password reset, dan invitation;
+  forced password change enforcement masih terbuka.
+- [x] Role/permission configurable, per-client admin assignment, role editor, dan audit before/after lengkap.
 - [x] Kebijakan revoke seluruh checkout session per client dengan audit operator.
 - [x] Recovery/rotasi callback secret dengan version check, audit, dan response secret sekali tampil.
-- [ ] Admin provisioning UI, UI transaksi, UI service/channel, dan UI role/MFA.
+- [x] Admin provisioning UI, UI transaksi, UI service/channel, dan UI role/MFA.
 - [ ] Egress/DNS hardening, browser end-to-end test, security review, secret scanning, backup/restore test.
 
 ### Data dan portal administration
 
 - [x] Admin read-only listing/detail PortalEvent per client dengan tenant filter dan permission.
 - [x] Admin read-only listing PortalUser dengan permission PII terpisah, tenant filter, dan audit akses.
-- [ ] PortalUser CRUD, perubahan master-data, dan audit before/after.
+- [x] PortalUser CRUD, perubahan nama dengan optimistic version, delete protection,
+  dan audit before/after tersanitasi.
 - [x] Filter transaksi per event dengan `client_id` wajib, permission ledger, dan response tanpa PII.
 - [x] Server-side payment search dan `total_count` agar pagination tidak terbatas pada halaman aktif.
-- [ ] Update payload portal existing untuk kontrak mandatory event/email.
+- [x] Update payload portal existing untuk kontrak mandatory event/email; schema,
+  validasi trim, dan contract test sudah aktif.
 - [ ] Backfill data historis hanya setelah mapping event/email asli disetujui.
-- [ ] Organizer/service admin API, merchant account, routing rules, channel eligibility, dan feature flags.
+- [x] Organizer/service administration API, merchant account, routing rules, channel
+  eligibility configuration, dan feature flags tenant-scoped.
+- [x] Runtime payment resolver memakai routing rules, merchant/channel active state,
+  currency, batas nominal, dan eligibility server-side.
+- [ ] UAT merchant/provider DOKU/Midtrans dan verifikasi credential binding sebelum
+  konfigurasi dapat diaktifkan untuk traffic live.
 
 ### Worker dan observability
 

@@ -14,6 +14,7 @@ from app.models.payment import PaymentAttempt
 from app.core.access import bearer_value
 from app.core.config import get_settings
 from app.services.checkout_service import payment_for_checkout
+from app.services.routing_service import eligible_channels, has_active_configuration
 
 router = APIRouter(prefix="/public", tags=["Public Checkout"])
 
@@ -32,12 +33,16 @@ async def checkout_summary(payment_no: str, payment: PaymentTransaction = Depend
     return {"data": {"payment_no": p.payment_no, "amount": p.amount, "currency": p.currency, "status": p.status.value}}
 
 @router.get("/payments/{payment_no}/channels")
-async def available_channels(payment_no: str, payment: PaymentTransaction = Depends(checkout_owner)):
+async def available_channels(payment_no: str, db: AsyncSession = Depends(get_db), payment: PaymentTransaction = Depends(checkout_owner)):
     await by_no(payment_no, payment)
     settings = get_settings()
     channels = []
-    if payment.status.value in {"CREATED", "PENDING"} and settings.midtrans_enabled and settings.midtrans_server_key:
-        channels = [{"code": "MIDTRANS_SNAP", "name": "Midtrans Snap"}]
+    if payment.status.value in {"CREATED", "PENDING"}:
+        configured = await eligible_channels(db, payment)
+        if configured:
+            channels = [{"code": row.channel_code, "name": row.name} for row in configured]
+        elif not await has_active_configuration(db, payment.client_id) and settings.midtrans_enabled and settings.midtrans_server_key:
+            channels = [{"code": "MIDTRANS_SNAP", "name": "Midtrans Snap"}]
     return {"data": {"channels": channels}}
 
 

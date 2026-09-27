@@ -7,12 +7,14 @@ from sqlalchemy.dialects.postgresql import insert
 from app.core.errors import AppError
 from app.models.admin import AdminAudit
 from app.models.payment import Service
+from app.models.routing import Organizer
 from app.services.admin_client_service import find_client
 
 
 def service_view(service):
     return {"id": str(service.id), "client_id": str(service.client_id), "code": service.code,
-            "name": service.name, "active": service.active, "version": service.version}
+            "name": service.name, "organizer_id": str(service.organizer_id) if service.organizer_id else None,
+            "active": service.active, "version": service.version}
 
 
 async def find_service(db, client_id, service_id, lock=False):
@@ -33,9 +35,11 @@ def audit(db, actor_id, service, action, reason):
 async def create_service(db, actor_id, client_id, payload):
     # Same lock/order as payment initiation and client configuration changes.
     await find_client(db, client_id, lock=True)
+    if payload.organizer_id and not await db.scalar(select(Organizer).where(Organizer.id == payload.organizer_id, Organizer.client_id == client_id, Organizer.active.is_(True))):
+        raise AppError("ORGANIZER_NOT_FOUND", "Organizer tidak ditemukan atau tidak aktif", 404)
     service_id = await db.scalar(insert(Service).values(
         id=uuid.uuid4(), client_id=client_id, code=payload.code, name=payload.name,
-        active=payload.active, version=1,
+        organizer_id=payload.organizer_id, active=payload.active, version=1,
     ).on_conflict_do_nothing(index_elements=[Service.client_id, Service.code]).returning(Service.id))
     if service_id is None:
         raise AppError("SERVICE_CODE_EXISTS", "Kode service sudah digunakan pada client ini", 409)
@@ -50,7 +54,11 @@ async def update_service(db, actor_id, client_id, service_id, payload):
     service = await find_service(db, client_id, service_id, lock=True)
     if service.version != payload.expected_version:
         raise AppError("SERVICE_VERSION_CONFLICT", "Service telah berubah; muat ulang", 409)
+    if "organizer_id" in payload.model_fields_set and payload.organizer_id and not await db.scalar(select(Organizer).where(Organizer.id == payload.organizer_id, Organizer.client_id == client_id, Organizer.active.is_(True))):
+        raise AppError("ORGANIZER_NOT_FOUND", "Organizer tidak ditemukan atau tidak aktif", 404)
     service.name, service.active = payload.name, payload.active
+    if "organizer_id" in payload.model_fields_set:
+        service.organizer_id = payload.organizer_id
     service.version += 1
     audit(db, actor_id, service, "SERVICE_UPDATED", payload.reason)
     await db.commit()

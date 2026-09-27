@@ -1,7 +1,7 @@
 """Portal-owned event and payer identities; distinct from admin login users."""
 import uuid
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -29,3 +29,4 @@ class PortalUser(Base):
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clients.id"))
     email: Mapped[str] = mapped_column(String(320))
     name: Mapped[str] = mapped_column(String(200))
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")

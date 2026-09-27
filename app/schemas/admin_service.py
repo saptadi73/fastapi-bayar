@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_validator
 
 
@@ -6,6 +7,7 @@ class ServiceFields(BaseModel):
     name: str = Field(min_length=1, max_length=250)
     active: StrictBool
     reason: str = Field(min_length=1, max_length=500)
+    organizer_id: UUID | None = None
 
     @field_validator("name", "reason", mode="before")
     @classmethod

@@ -17,3 +17,23 @@ Checklist aktivasi:
 5. Verifikasi notification URL DOKU persis dengan path endpoint, signature, timestamp, dan merchant binding.
 6. Uji transaksi nominal kecil, webhook, inquiry, callback, refund, dan rekonsiliasi.
 7. Audit agar secret tidak masuk response, browser, telemetry, atau commit.
+
+## Client credential encryption backfill
+
+Set `CREDENTIAL_ENCRYPTION_KEY` pada secret manager terlebih dahulu. Generate Fernet key
+di environment deployment, bukan di repository. Audit jumlah legacy row tanpa perubahan:
+
+Rotasi key: isi key baru pada `CREDENTIAL_ENCRYPTION_KEY` dan pindahkan key lama ke
+`CREDENTIAL_ENCRYPTION_KEY_PREVIOUS`. Restart deployment secara rolling, jalankan backfill,
+lalu hapus `CREDENTIAL_ENCRYPTION_KEY_PREVIOUS` setelah seluruh ciphertext selesai ditulis
+dengan key baru. Selama masa transisi backend dapat mendekripsi kedua key, tetapi selalu
+mengenkripsi credential baru dengan key aktif.
+
+```powershell
+.\venv\Scripts\python.exe scripts\encrypt_callback_secrets.py --dry-run
+```
+
+Setelah backup dan approval operator, jalankan tanpa `--dry-run`. Script mengenkripsi
+plaintext legacy dan me-re-encrypt ciphertext yang masih hanya dapat dibuka dengan key
+sebelumnya. Pastikan output `credentials_to_rewrite` sesuai ekspektasi sebelum commit.
+Jangan mencetak key, secret, atau payload ke log.

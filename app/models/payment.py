@@ -29,6 +29,7 @@ class Client(Base):
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(200))
     api_secret: Mapped[str] = mapped_column(String(255))
+    api_secret_ciphertext: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     key_id: Mapped[str] = mapped_column(String(100), default="key-2026-01", server_default="key-2026-01")
     oauth_secret_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     token_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
@@ -36,6 +37,7 @@ class Client(Base):
     allowed_return_urls: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     allowed_callback_urls: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     callback_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    callback_secret_ciphertext: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     callback_secret_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     callback_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -45,6 +47,7 @@ class Service(Base):
     __tablename__ = "services"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     client_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clients.id"), index=True)
+    organizer_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("organizers.id"), nullable=True, index=True)
     code: Mapped[str] = mapped_column(String(100), index=True)
     name: Mapped[str] = mapped_column(String(250))
     version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")

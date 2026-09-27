@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from app.core.access import allow_url, hash_secret, validate_registered_url
+from app.core.config import get_settings
 from app.core.errors import AppError
+from app.core.secret_store import encrypt_secret
 from app.models.admin import AdminAudit
 from app.models.payment import CheckoutSession, Client, PaymentTransaction, Service
 from app.schemas.admin_client import CreateClient, UpdateClient, RotateClientSecret, RotateCallbackSecret
@@ -55,10 +57,16 @@ async def create_client(db: AsyncSession, actor_id, payload: CreateClient):
     validate_configuration(payload)
     secret, callback_secret = secrets.token_urlsafe(48), secrets.token_urlsafe(48)
     encoded = await run_in_threadpool(hash_secret, secret)
+    encryption_key = get_settings().credential_encryption_key
+    api_secret = secrets.token_urlsafe(48)
+    api_secret_ciphertext = encrypt_secret(api_secret, encryption_key) if encryption_key else None
+    callback_secret_ciphertext = encrypt_secret(callback_secret, encryption_key) if encryption_key else None
     client_id = await db.scalar(insert(Client).values(
         id=uuid.uuid4(), code=payload.code, name=payload.name, active=payload.active,
-        api_secret=secrets.token_urlsafe(48), oauth_secret_hash=encoded,
-        callback_secret=callback_secret, token_version=1,
+        api_secret=api_secret if not api_secret_ciphertext else "", api_secret_ciphertext=api_secret_ciphertext,
+        oauth_secret_hash=encoded,
+        callback_secret=None if callback_secret_ciphertext else callback_secret,
+        callback_secret_ciphertext=callback_secret_ciphertext, token_version=1,
         allowed_scopes=" ".join(sorted(set(payload.scopes))),
         allowed_return_urls=payload.allowed_return_urls, allowed_callback_urls=payload.allowed_callback_urls,
         callback_url=payload.callback_url,
@@ -104,7 +112,9 @@ async def rotate_callback_secret(db: AsyncSession, actor_id, client_id, payload:
     if client.callback_secret_version != payload.expected_version:
         raise AppError("CLIENT_CALLBACK_VERSION_CONFLICT", "Callback secret telah berubah; muat ulang sebelum mencoba lagi", 409)
     callback_secret = secrets.token_urlsafe(48)
-    client.callback_secret = callback_secret
+    encrypted = encrypt_secret(callback_secret, get_settings().credential_encryption_key) if get_settings().credential_encryption_key else None
+    client.callback_secret = None if encrypted else callback_secret
+    client.callback_secret_ciphertext = encrypted
     client.callback_secret_version += 1
     audit(db, actor_id, client, "CLIENT_CALLBACK_SECRET_ROTATED", payload.reason)
     await db.commit()

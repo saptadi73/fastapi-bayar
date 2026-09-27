@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.access import allow_url
 from app.core.errors import AppError
+from app.core.secret_store import decrypt_secret
 from app.models.payment import CallbackDelivery, Client, PaymentTransaction
 
 RETRY_DELAYS_SECONDS = (60, 300, 900, 3600, 21600, 86400)
@@ -82,7 +83,20 @@ async def deliver_pending_callbacks(db: AsyncSession, limit: int = 20) -> dict[s
                 continue
             delivery.status = "SENDING"
             delivery.attempt_no += 1
-            secret = owner.callback_secret or owner.api_secret
+            if owner.callback_secret_ciphertext:
+                settings = get_settings()
+                secret = decrypt_secret(owner.callback_secret_ciphertext, settings.credential_encryption_key,
+                                        settings.credential_encryption_key_previous)
+            else:
+                # Legacy rows remain readable until the controlled backfill is run.
+                if owner.callback_secret:
+                    secret = owner.callback_secret
+                elif owner.api_secret_ciphertext:
+                    settings = get_settings()
+                    secret = decrypt_secret(owner.api_secret_ciphertext, settings.credential_encryption_key,
+                                            settings.credential_encryption_key_previous)
+                else:
+                    secret = owner.api_secret
             timestamp = datetime.now(timezone.utc).isoformat()
             headers = {"Content-Type": "application/json", "X-Event-ID": str(delivery.event_id), "X-Timestamp": timestamp, "X-Signature": callback_signature(delivery.payload, secret, timestamp)}
             try:

@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.errors import AppError
 from app.core.security import build_canonical, sign, timestamp_is_valid
+from app.core.secret_store import decrypt_secret
 from app.models.payment import Client, NonceRecord
 from app.core.access import bearer_value, decode_access_token
 import uuid
@@ -31,7 +32,10 @@ async def legacy_hmac_dependency(request: Request, db: AsyncSession = Depends(ge
         if query:
             path += "?" + query
         canonical = build_canonical(request.method, path, x_client_id or "", x_key_id or "", x_timestamp or "", x_nonce or "", await request.body())
-        if not hmac.compare_digest(sign(canonical, client.api_secret), x_signature or ""):
+        settings = get_settings()
+        api_secret = decrypt_secret(client.api_secret_ciphertext, settings.credential_encryption_key,
+                                    settings.credential_encryption_key_previous) if client.api_secret_ciphertext else client.api_secret
+        if not hmac.compare_digest(sign(canonical, api_secret), x_signature or ""):
             raise AppError("INVALID_SIGNATURE", "Signature tidak valid", 401)
         nonce_id = await db.scalar(insert(NonceRecord).values(
             client_id=client.id, nonce=x_nonce,
