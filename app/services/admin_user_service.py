@@ -44,6 +44,7 @@ async def create_user(db, actor_id, session_hash, payload):
     user_id = await db.scalar(insert(AdminUser).values(
         id=uuid.uuid4(), email=str(payload.email).strip().lower(), display_name=payload.display_name,
         role=payload.role, active=payload.active, password_hash=encoded, version=1,
+        force_password_change=True,
     ).on_conflict_do_nothing(index_elements=[AdminUser.email]).returning(AdminUser.id))
     if user_id is None:
         raise AppError("ADMIN_EMAIL_EXISTS", "Email admin sudah terdaftar", 409)

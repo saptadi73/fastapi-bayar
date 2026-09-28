@@ -42,7 +42,7 @@ class AdminInvitation(Base):
     __table_args__ = (Index("ix_admin_invitations_token_hash", "token_hash"), Index("ix_admin_invitations_email", "email"))
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    email: Mapped[str] = mapped_column(String(320), index=True)
+    email: Mapped[str] = mapped_column(String(320))
     display_name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(40))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -55,7 +55,7 @@ class AdminPasswordReset(Base):
     __table_args__ = (Index("ix_admin_password_resets_token_hash", "token_hash"), Index("ix_admin_password_resets_user_id", "user_id"))
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("admin_users.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("admin_users.id"))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

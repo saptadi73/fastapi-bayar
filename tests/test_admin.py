@@ -88,7 +88,8 @@ async def test_admin_sessions_permissions_csrf_rate_limit_and_isolation(monkeypa
             me = await api.get("/api/v1/admin/auth/me")
             assert me.status_code == 200 and "admin.users.read" in me.json()["data"]["permissions"]
             listing = await api.get("/api/v1/admin/users")
-            assert listing.status_code == 200 and "password" not in listing.text
+            assert listing.status_code == 200
+            assert "password_hash" not in listing.text and body["password"] not in listing.text
             assert (await api.get("/api/v1/admin/roles")).status_code == 200
             assert (await api.get("/api/v1/admin/audit")).status_code == 200
             mutate = {**origin, "X-CSRF-Token": csrf}
@@ -102,9 +103,11 @@ async def test_admin_sessions_permissions_csrf_rate_limit_and_isolation(monkeypa
             bad_password = await api.post("/api/v1/admin/users", headers=mutate, json={**create_user, "password": "Ab9?Zk"})
             assert bad_password.status_code == 422 and "Ab9?Zk" not in bad_password.text
             second_user = await api.post("/api/v1/admin/users", headers=mutate, json=create_user)
-            assert second_user.status_code == 201 and "password" not in second_user.text
+            assert second_user.status_code == 201
+            assert "password_hash" not in second_user.text and create_user["password"] not in second_user.text
             other_id = second_user.json()["data"]["id"]
             assert second_user.json()["data"]["email"] == "second@example.com"
+            assert second_user.json()["data"]["force_password_change"] is True
             assert (await api.post("/api/v1/admin/users", headers=mutate, json=create_user)).status_code == 409
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://admin.test") as other:
                 credentials = {"identifier": "second@example.com", "password": create_user["password"]}
@@ -113,19 +116,27 @@ async def test_admin_sessions_permissions_csrf_rate_limit_and_isolation(monkeypa
                 denied = await other.post("/api/v1/admin/users", json=create_user,
                                           headers={**origin, "X-CSRF-Token": login_other.json()["data"]["csrf_token"]})
                 assert denied.status_code == 403
+                assert denied.json()["error"]["code"] == "ADMIN_PASSWORD_CHANGE_REQUIRED"
+                changed_password = await other.post("/api/v1/admin/users/password-change", headers={
+                    **origin, "X-CSRF-Token": login_other.json()["data"]["csrf_token"],
+                }, json={"current_password": create_user["password"],
+                         "new_password": "replacement-admin-password!", "reason": "Initial sign-in"})
+                assert changed_password.status_code == 200
+                assert (await other.get("/api/v1/admin/auth/me")).json()["data"]["user"]["force_password_change"] is False
+                credentials["password"] = "replacement-admin-password!"
                 change = {"display_name": "Second", "role": "INTEGRATION_ADMIN", "active": True,
-                          "expected_version": 1, "reason": "Change responsibilities"}
+                          "expected_version": 2, "reason": "Change responsibilities"}
                 changed = await api.patch(f"/api/v1/admin/users/{other_id}", headers=mutate, json=change)
-                assert changed.status_code == 200 and changed.json()["data"]["version"] == 2
+                assert changed.status_code == 200 and changed.json()["data"]["version"] == 3
                 assert (await other.get("/api/v1/admin/auth/me")).status_code == 401
                 assert (await other.post("/api/v1/admin/auth/login", headers=origin, json=credentials)).status_code == 200
                 revoked = await api.post(f"/api/v1/admin/users/{other_id}/revoke-sessions", headers=mutate,
-                                         json={"expected_version": 2, "reason": "Revoke devices"})
-                assert revoked.status_code == 200 and revoked.json()["data"]["version"] == 3
+                                         json={"expected_version": 3, "reason": "Revoke devices"})
+                assert revoked.status_code == 200 and revoked.json()["data"]["version"] == 4
                 assert (await other.get("/api/v1/admin/auth/me")).status_code == 401
                 results = await asyncio.gather(*[
                     api.patch(f"/api/v1/admin/users/{other_id}", headers=mutate,
-                              json={**change, "active": False, "expected_version": 3}) for _ in range(2)
+                              json={**change, "active": False, "expected_version": 4}) for _ in range(2)
                 ])
                 assert sorted(r.status_code for r in results) == [200, 409]
                 assert (await other.post("/api/v1/admin/auth/login", headers=origin, json=credentials)).status_code == 401
@@ -173,7 +184,11 @@ async def test_admin_sessions_permissions_csrf_rate_limit_and_isolation(monkeypa
             listing = await api.get("/api/v1/admin/clients")
             for result in (detail, listing):
                 assert result.status_code == 200 and initial_secret not in result.text
-                assert record["callback_secret"] not in result.text and "secret" not in result.text
+                assert record["callback_secret"] not in result.text
+                records = result.json()["data"]
+                records = records if isinstance(records, list) else [records]
+                assert all(not {"client_secret", "callback_secret", "oauth_secret_hash", "api_secret"} & item.keys()
+                           for item in records)
             issued_client = await api.post("/api/v1/oauth/token", auth=("EVENT-ADMIN", initial_secret),
                                           data={"grant_type": "client_credentials"})
             assert issued_client.status_code == 200
@@ -188,7 +203,7 @@ async def test_admin_sessions_permissions_csrf_rate_limit_and_isolation(monkeypa
             rotated = await api.post(f"/api/v1/admin/clients/{client_id}/rotate-secret", headers=mutate,
                                      json={"expected_version": 1, "reason": "Rotation"})
             assert rotated.status_code == 200
-            assert "callback_secret" not in rotated.text
+            assert "callback_secret" not in rotated.json()["data"]
             assert rotated.json()["data"]["version"] == 2
             assert (await api.post(f"/api/v1/admin/clients/{client_id}/rotate-secret", headers=mutate,
                                   json={"expected_version": 1, "reason": "Stale retry"})).status_code == 409

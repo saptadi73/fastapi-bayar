@@ -33,9 +33,11 @@ POST koleksi (tanpa trailing slash):
 Role: SUPER_ADMIN, INTEGRATION_ADMIN, FINANCE, AUDITOR. FINANCE dapat membaca ledger
 melalui ADMIN_PAYMENT_API.md. Email dinormalisasi lowercase dan unik untuk akun admin. Password di-hash,
 tidak dikembalikan response/audit. Response 201 data: id, email, display_name, role,
-active, version=1. Email undangan, forced password change dan reset belum tersedia.
-Serahkan password awal melalui saluran aman; frontend jangan menyimpan/log/analytics
-input password dan hapus state setelah submit. Masih development-only sampai MFA.
+active, version=1, dan force_password_change=true. Email undangan, reset password,
+dan forced password change tersedia. Akun baru wajib mengganti password awal melalui
+`POST /admin/users/password-change` sebelum mengakses modul lain. Serahkan password
+awal melalui saluran aman; frontend jangan menyimpan/log/analytics input password dan
+hapus state setelah submit. Admin tetap development-only sampai security review.
 
 PATCH memakai seluruh field berikut (bukan sparse patch):
 

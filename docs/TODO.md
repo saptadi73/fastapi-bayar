@@ -1,26 +1,33 @@
 # TODO dan Roadmap Implementasi
 
-> Review terakhir: 27 September 2026. Checklist ini dicocokkan dengan route,
-> service, gateway, migration, dokumentasi, dan test repository.
-> Status checklist: 45 selesai, 17 terbuka. `alembic check` bersih dan head
-> berada di `20260918_0031`. Validasi test terbaru: `103 passed, 14 skipped`.
+> Review terakhir: 29 September 2026. Checklist ini dicocokkan dengan route,
+> service, gateway, migration, test backend, serta route/view/API frontend `vue-bayar`.
+> Status checklist: 45 selesai, 18 terbuka. `alembic check` bersih dan head
+> berada di `20260918_0031`. Validasi terbaru: backend `103 passed, 14 skipped`;
+> frontend `npm run build` lulus (type-check dan Vite production build).
 
-## Hasil audit 27 September 2026
+## Hasil audit 29 September 2026
 
 - **Selesai dan terverifikasi:** struktur modular FastAPI, database/migration,
   health/readiness, OAuth client credentials, checkout token, identity client/event/user,
   payment ledger/idempotency, webhook/outbox, admin API, reconciliation retry/backoff,
   refund maker-checker, winning attempt, late/duplicate-paid quarantine, DOKU Indomaret,
   Midtrans boundary, error catalog, dan kontrak route/error OpenAPI.
-- **Selesai sebagian:** admin frontend sudah memiliki login, client, user, service,
-  payment, refund, reconciliation, audit, event, dan portal-user read-only. Role editor,
-  MFA, export UI, dan konfigurasi gateway/channel belum tersedia.
+- **Frontend selesai dan terverifikasi:** login/MFA, permission route guard, dashboard,
+  client/user/service, role editor, payment/detail, refund, reconciliation, audit,
+  event, PortalUser CRUD, serta konfigurasi merchant/gateway/channel/routing.
+- **Frontend masih terbuka:** tombol/unduhan export payment, invitation/password-reset
+  UI, browser E2E, dan validasi visual lintas viewport.
 - **Belum terverifikasi:** sandbox UAT/provider live, merchant binding, credential
   encryption/rotation, secret manager, scheduler deployment, observability terpusat,
   load test PostgreSQL, backup/restore, browser E2E, dan approval live launch.
-- **Catatan test:** assertion refund Midtrans sekarang mem-parse JSON request body,
-  sehingga tidak bergantung pada whitespace serialisasi JSON. Contract test OpenAPI
-  juga memverifikasi parameter `search` pada daftar dan export payment.
+- **Implementasi audit ini:** akun admin baru wajib mengganti password sementara;
+  endpoint self-service tersedia untuk seluruh role terautentikasi, dan frontend
+  memaksa route ganti password sebelum modul admin lain dapat dibuka.
+- **Catatan test PostgreSQL:** alur forced-password lolos sampai flag menjadi false.
+  Suite opt-in masih menemukan dua drift lama: permission role tersimpan membuat Auditor
+  dapat membaca client tetapi mendapat 403 pada service, dan fixture admin payment
+  membuat dua active attempt yang ditolak constraint database; keduanya perlu dibenahi.
 
 ## Sudah selesai
 
@@ -41,7 +48,7 @@
 - [x] DOKU Non-SNAP signature verifier, timestamp freshness, deduplication, amount/order validation, status mapper.
 - [x] DOKU Check Status, Indomaret payment-code adapter, webhook, dan reconciliation worker integration.
 - [x] Webhook duplicate, out-of-order, late-event, quarantine, dan secret-redaction tests.
-- [x] Alembic migration chain sampai `20260918_0020`; `alembic check` bersih.
+- [x] Alembic migration chain sampai `20260918_0031`; `alembic check` bersih.
 - [x] Dokumentasi Frontend, Portal Event Client, Admin API, provider verification, worker operations, dan live credential runbook.
 - [x] `.gitignore` untuk `.env`, `.secrets`, virtual environment, `__pycache__`, dan `.pyc`; virtual environment tidak lagi tracked.
 
@@ -67,8 +74,8 @@
 - [x] Dual-key runtime decryption untuk rotasi `CREDENTIAL_ENCRYPTION_KEY` tanpa downtime.
 - [x] Fondasi encryption callback/api secret baru dengan Fernet key wajib di production.
 - [x] Rate limiting terdistribusi dan audit autentikasi yang account-aware.
-- [x] MFA TOTP enrollment/recovery, reauthentication, password reset, dan invitation;
-  forced password change enforcement masih terbuka.
+- [x] MFA TOTP enrollment/recovery, reauthentication, password reset, invitation,
+  dan forced password change backend/frontend.
 - [x] Role/permission configurable, per-client admin assignment, role editor, dan audit before/after lengkap.
 - [x] Kebijakan revoke seluruh checkout session per client dengan audit operator.
 - [x] Recovery/rotasi callback secret dengan version check, audit, dan response secret sekali tampil.
@@ -106,6 +113,7 @@
 - [x] Contract test path aktif OpenAPI dan error envelope.
 - [x] OpenAPI payment response schema, pagination consistency, dan concurrency contract tests.
 - [ ] Finalisasi seluruh OpenAPI admin dan generated client.
+- [ ] Export payment UI, invitation/password-reset UI, dan browser E2E frontend.
 - [ ] Unit test tambahan untuk seluruh state transition, money, idempotency, dan provider channel.
 - [x] Migration gate production: `AUTO_CREATE_TABLES=false`, migration head diverifikasi sebelum startup.
 - [ ] Checklist deployment, secret rotation, backup/restore, sandbox UAT, dan approval live launch.

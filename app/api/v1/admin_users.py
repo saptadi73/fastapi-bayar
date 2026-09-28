@@ -2,7 +2,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.admin import enabled, profile, require
+from app.api.v1.admin import enabled, principal, profile, require
 from app.core.database import get_db
 from app.schemas.admin_user import CreateAdminUser, InviteAdmin, PasswordChange, PasswordResetConfirm, RevokeUserSessions, UpdateAdminUser
 from app.schemas.admin_role import ClientAssignment
@@ -25,7 +25,7 @@ async def invitation(payload: InviteAdmin, identity=Depends(require("admin.users
 
 
 @router.post("/password-change")
-async def password_change(payload: PasswordChange, identity=Depends(require("admin.users.read")), db: AsyncSession = Depends(get_db)):
+async def password_change(payload: PasswordChange, identity=Depends(principal), db: AsyncSession = Depends(get_db)):
     return {"data": await change_password(db, identity[0], identity[1], payload)}
 
 
